@@ -11,7 +11,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <a href="#inicio" aria-label="Sunshine Handmade, inicio"><Logo size={36} /></a>
+        <a href="#inicio" aria-label="Sunshine Handmade, inicio"><Logo size={45} /></a>
         <nav aria-label="Principal" className="hidden items-center gap-4 md:flex">
           {navLinks.map((l) => <a key={l.href} href={l.href} className={link}>{l.label}</a>)}
           <Link to="/login"><Button size="sm">Ir al sistema</Button></Link>

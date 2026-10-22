@@ -14,7 +14,7 @@ export default function Hero() {
           </div>
         </div>
         <div className="mx-auto grid aspect-square w-64 place-items-center rounded-full bg-white shadow-lift sm:w-80">
-          <div className="text-center"><Logo size={150} withText={false} /><p className="font-serif text-xl text-brand-dark">Sunshine Handmade</p><p className="text-xs tracking-[0.3em] text-brand">NICARAGUA</p></div>
+          <div className="text-center"><Logo size={200} withText={false} /><p className="font-serif text-xl text-brand-dark">Sunshine Handmade</p><p className="text-xs tracking-[0.3em] text-brand">NICARAGUA</p></div>
         </div>
       </div>
     </section>

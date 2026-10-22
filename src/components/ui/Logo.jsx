@@ -1,16 +1,21 @@
-/** Sol de marca en SVG. Para usar el logo oficial: <img src="/src/assets/logo-sunshine.png" />. */
+
 export default function Logo({ size = 40, withText = true }) {
-  const rays = Array.from({ length: 14 }, (_, i) => i * (360 / 14));
   return (
-    <span className="inline-flex items-center gap-2">
-      <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
-        {rays.map((a) => (
-          <line key={a} x1="24" y1="3" x2="24" y2="9" stroke="#F6C945" strokeWidth="2.5" strokeLinecap="round" transform={`rotate(${a} 24 24)`} />
-        ))}
-        <circle cx="24" cy="24" r="12" fill="#F4A62A" />
-        <path d="M5 33q19 6 38 0v6q-19 6-38 0z" fill="#2FBFAE" />
-      </svg>
-      {withText && <span className="text-xl font-bold text-sun">Sunshine</span>}
+    <span className="inline-flex items-center gap-2 shrink-0">
+      <img
+        src="https://tse1.mm.bing.net/th/id/OIP.gcXW_lfk2nhbURb3uRuu1wHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3"
+        alt="Logo Sunshine"
+        width={size}
+        height={size}
+        className="shrink-0 rounded-full object-cover aspect-square"
+      />
+
+      {withText && (
+        <span className="font-semibold text-gray-900">
+          Sunshine
+          <span className="text-sun"> Handmade</span>
+        </span>
+      )}
     </span>
   );
 }
