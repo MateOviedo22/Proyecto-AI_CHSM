@@ -14,11 +14,22 @@ import FinancePage from './pages/system/FinancePage';
 import HrPage from './pages/system/HrPage';
 
 // MODULOS DE PRUEBA NUEVOS
+//Modulos de CRM
 import PanelCRM from './pages/system/CRM/PanelCRM';
 import Clientes from './pages/system/CRM/Clientes';
 import HistorialCRM from './pages/system/CRM/HistorialCRM';
 import Segmentacion from './pages/system/CRM/SegmentacionClientes';
 import ReportesCRM from './pages/system/CRM/ReportesCRM';
+
+//Modulos de Produccion
+import Etapas_Procesos from './pages/system/Produccion/Etapas_Procesos';
+import Fichas_Tecnicas from './pages/system/Produccion/Fichas_Tecnicas';
+import Materiales from './pages/system/Produccion/Materiales';
+import Ordenes_Produccion from './pages/system/Produccion/Ordenes_Produccion';
+import PanelProduccion from './pages/system/Produccion/PanelProduccion';
+import Planificacion from './pages/system/Produccion/Planificación';
+import Producto_terminados from './pages/system/Produccion/Productos_Terminados';
+import Reportes_Produccion from './pages/system/Produccion/Reportes_Produccion';
 
 export default function App() {
   return (
@@ -43,21 +54,25 @@ export default function App() {
             <Route path="crm/Dash" element={<PanelCRM />} />
             <Route path="crm/clientes" element={<Clientes />} />
             <Route path="crm/historial" element={<HistorialCRM />} />
-            <Route path="crm/segmentacion" element={< Segmentacion/>} />            
-            <Route path="crm/reportes" element={< ReportesCRM/>} />
-            
+            <Route path="crm/segmentacion" element={< Segmentacion />} />
+            <Route path="crm/reportes" element={< ReportesCRM />} />
+
 
             {/* Produccion SubMODULES */}
-            <Route path="produccion/" element={<PanelCRM />} />
-            <Route path="produccion/clientes" element={<Clientes />} />
-            <Route path="produccion/historial" element={<HistorialCRM />} />
-            <Route path="produccion/segmentacion" element={< Segmentacion/>} />            
-            <Route path="produccion/reportes" element={< ReportesCRM/>} />
+            <Route path="produccion/etapas" element={<Etapas_Procesos />} />
+            <Route path="produccion/fichas-tecnicas" element={<Fichas_Tecnicas />} />
+            <Route path="produccion/materiales" element={<Materiales />} />
+            <Route path="produccion/ordenes-produccion" element={<Ordenes_Produccion />} />
+            <Route path="produccion/panel" element={< PanelProduccion />} />
+            <Route path="produccion/planificacion" element={< Planificacion />} />
+            <Route path="produccion/productos-terminados" element={< Producto_terminados/>} />
+            <Route path="produccion/reportes" element={< Reportes_Produccion/>} />
+
             {/* FIN */}
 
-            
+
           </Route>
-        
+
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

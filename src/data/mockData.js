@@ -15,11 +15,31 @@ export const modules = [
     path: '/sistema/crm',
     icon: 'Users',
     children: [
-      { key: 'crm-panel', label: 'Panel CRM', path: '/sistema/crm/Dash' },
-      { key: 'crm-clientes', label: 'Clientes', path: '/sistema/crm/clientes' },
-      { key: 'crm-historial', label: 'Historial de clientes', path: '/sistema/crm/historial' },
-      { key: 'crm-segmentacion', label: 'Segmentación', path: '/sistema/crm/segmentacion' },
-      { key: 'crm-reportes', label: 'Reportes CRM', path: '/sistema/crm/reportes' },
+      {
+        key: 'crm-panel',
+        label: 'Panel CRM',
+        path: '/sistema/crm/Dash',
+      },
+      {
+        key: 'crm-clientes',
+        label: 'Clientes',
+        path: '/sistema/crm/clientes',
+      },
+      {
+        key: 'crm-historial',
+        label: 'Historial de clientes',
+        path: '/sistema/crm/historial',
+      },
+      {
+        key: 'crm-segmentacion',
+        label: 'Segmentación',
+        path: '/sistema/crm/segmentacion',
+      },
+      {
+        key: 'crm-reportes',
+        label: 'Reportes CRM',
+        path: '/sistema/crm/reportes',
+      },
     ],
   },
   {
@@ -27,6 +47,49 @@ export const modules = [
     label: 'Producción',
     path: '/sistema/produccion',
     icon: 'Factory',
+    children: [
+      {
+        key: 'produccion-panel',
+        label: 'Panel de producción',
+        path: '/sistema/produccion',
+      },
+      {
+        key: 'produccion-etapas',
+        label: 'Etapas y procesos',
+        path: '/sistema/produccion/etapas',
+      },
+      {
+        key: 'produccion-fichas',
+        label: 'Fichas técnicas',
+        path: '/sistema/produccion/fichas-tecnicas',
+      },
+      {
+        key: 'produccion-materiales',
+        label: 'Materiales',
+        path: '/sistema/produccion/materiales',
+      },
+      {
+        key: 'produccion-ordenes',
+        label: 'Órdenes de producción',
+        path: '/sistema/produccion/ordenes-produccion',
+      },
+      {
+        key: 'produccion-planificacion',
+        label: 'Planificación',
+        path: '/sistema/produccion/planificacion',
+      },
+      {
+        key: 'produccion-terminados',
+        label: 'Productos terminados',
+        path: '/sistema/produccion/productos-terminados',
+      },
+      {
+        key: 'produccion-reportes',
+        label: 'Reportes de producción',
+        path: '/sistema/produccion/reportes',
+      },
+
+    ],
   },
   {
     key: 'inventario',
@@ -129,4 +192,151 @@ export const statusTone = {
   Activo: 'ok', Completada: 'ok', Completado: 'ok', Ingreso: 'info',
   Inactivo: 'bad', Cancelada: 'bad', Crítico: 'bad', Gasto: 'bad',
   Pendiente: 'warn', Bajo: 'warn', 'En proceso': 'info',
+};
+
+
+export const productionPlans = [
+  {
+    id: 'PLAN-001',
+    product: 'Bolso Elipse',
+    quantity: 30,
+    startDate: '2026-10-20',
+    dueDate: '2026-10-28',
+    responsible: 'Coordinación de producción',
+    priority: 'Alta',
+    status: 'En proceso',
+  },
+  {
+    id: 'PLAN-002',
+    product: 'Faja para Dama',
+    quantity: 20,
+    startDate: '2026-10-22',
+    dueDate: '2026-10-30',
+    responsible: 'Equipo de marroquinería',
+    priority: 'Media',
+    status: 'Planificada',
+  },
+  {
+    id: 'PLAN-003',
+    product: 'Cosmetiquera Neo',
+    quantity: 40,
+    startDate: '2026-10-10',
+    dueDate: '2026-10-18',
+    responsible: 'Equipo de ensamblaje',
+    priority: 'Baja',
+    status: 'Completada',
+  },
+  {
+    id: 'PLAN-004',
+    product: 'Bolso Avalon',
+    quantity: 25,
+    startDate: '2026-10-23',
+    dueDate: '2026-10-31',
+    responsible: 'Equipo de costura',
+    priority: 'Alta',
+    status: 'Planificada',
+  },
+  {
+    id: 'PLAN-005',
+    product: 'Billetera Clásica',
+    quantity: 35,
+    startDate: '2026-10-24',
+    dueDate: '2026-11-02',
+    responsible: 'Equipo de ensamblaje',
+    priority: 'Media',
+    status: 'Planificada',
+  },
+];
+
+export const finishedProducts = [
+  {
+    id: 'PT-001',
+    product: 'Bolso Avalon',
+    orderId: 'OP-001',
+    quantity: 25,
+    approved: 23,
+    rejected: 2,
+    finishedDate: '2026-10-18',
+    inventoryStatus: 'Pendiente',
+  },
+  {
+    id: 'PT-002',
+    product: 'Faja para Dama',
+    orderId: 'OP-002',
+    quantity: 18,
+    approved: 18,
+    rejected: 0,
+    finishedDate: '2026-10-17',
+    inventoryStatus: 'Enviado al inventario',
+  },
+  {
+    id: 'PT-003',
+    product: 'Cosmetiquera Neo',
+    orderId: 'OP-003',
+    quantity: 32,
+    approved: 30,
+    rejected: 2,
+    finishedDate: '2026-10-16',
+    inventoryStatus: 'Pendiente',
+  },
+  {
+    id: 'PT-004',
+    product: 'Bolso Elipse',
+    orderId: 'OP-004',
+    quantity: 30,
+    approved: 29,
+    rejected: 1,
+    finishedDate: '2026-10-15',
+    inventoryStatus: 'Enviado al inventario',
+  },
+  {
+    id: 'PT-005',
+    product: 'Billetera Clásica',
+    orderId: 'OP-005',
+    quantity: 40,
+    approved: 38,
+    rejected: 2,
+    finishedDate: '2026-10-14',
+    inventoryStatus: 'Pendiente',
+  },
+];
+
+
+
+export const productionReports = {
+  'Mes actual': {
+    planned: 120,
+    produced: 95,
+    completedOrders: 8,
+    stages: [
+      { name: 'Corte', quantity: 110 },
+      { name: 'Costura', quantity: 100 },
+      { name: 'Ensamblaje', quantity: 95 },
+      { name: 'Acabado y revisión', quantity: 90 },
+    ],
+  },
+
+  'Mes anterior': {
+    planned: 100,
+    produced: 92,
+    completedOrders: 7,
+    stages: [
+      { name: 'Corte', quantity: 100 },
+      { name: 'Costura', quantity: 96 },
+      { name: 'Ensamblaje', quantity: 92 },
+      { name: 'Acabado y revisión', quantity: 92 },
+    ],
+  },
+
+  'Últimos 7 días': {
+    planned: 35,
+    produced: 28,
+    completedOrders: 3,
+    stages: [
+      { name: 'Corte', quantity: 35 },
+      { name: 'Costura', quantity: 32 },
+      { name: 'Ensamblaje', quantity: 28 },
+      { name: 'Acabado y revisión', quantity: 25 },
+    ],
+  },
 };

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
@@ -33,16 +32,30 @@ const icons = {
 export default function Sidebar({ open, onClose }) {
   const location = useLocation();
 
-  const isCrmActive = location.pathname.startsWith('/sistema/crm');
 
-  const [crmExpanded, setCrmExpanded] = useState(isCrmActive);
+  const activeModules = modules.filter(
+    (module) =>
+      module.children?.length &&
+      location.pathname.startsWith(module.path)
+  );
 
-  // Mantiene abierto el menú al navegar por las páginas del CRM.
+  const [expandedModule, setExpandedModule] = useState(
+    () => activeModules[0]?.key ?? null
+  );
+  // Abre automáticamente el submenú de la ruta actual.
+
   useEffect(() => {
-    if (isCrmActive) {
-      setCrmExpanded(true);
+    if (activeModules.length > 0) {
+      setExpandedModule(activeModules[0].key);
     }
-  }, [isCrmActive]);
+  }, [location.pathname]);
+
+  // Solo permite tener un submenú abierto a la vez.
+  const toggleModule = (key) => {
+    setExpandedModule((previous) =>
+      previous === key ? null : key
+    );
+  };
 
   return (
     <>
@@ -65,6 +78,7 @@ export default function Sidebar({ open, onClose }) {
           <Logo size={36} />
 
           <button
+            type="button"
             onClick={onClose}
             className="rounded p-1 hover:bg-black/5 lg:hidden"
             aria-label="Cerrar menú"
@@ -84,26 +98,26 @@ export default function Sidebar({ open, onClose }) {
               const Icon = icons[icon];
               const hasChildren = Boolean(children?.length);
 
-              // Módulos con subopciones, como CRM.
               if (hasChildren) {
-                const expanded = key === 'crm' ? crmExpanded : false;
-                const active = key === 'crm' && isCrmActive;
+                const expanded = expandedModule === key;
+                const active = location.pathname.startsWith(path);
 
                 return (
                   <li key={key}>
                     <button
                       type="button"
-                      onClick={() => setCrmExpanded((previous) => !previous)}
+                      onClick={() => toggleModule(key)}
                       aria-expanded={expanded}
                       className={`flex w-full items-center gap-3 border-l-4
                         px-4 py-2.5 text-left text-sm transition
-                        ${
-                          active
-                            ? 'border-brand bg-sand font-medium'
-                            : 'border-transparent hover:bg-black/5'
+                        ${active
+                          ? 'border-brand bg-sand font-medium'
+                          : 'border-transparent hover:bg-black/5'
                         }`}
                     >
-                      <Icon size={18} aria-hidden="true" />
+                      {Icon && (
+                        <Icon size={18} aria-hidden="true" />
+                      )}
 
                       <span className="flex-1">{label}</span>
 
@@ -120,13 +134,13 @@ export default function Sidebar({ open, onClose }) {
                           <li key={child.key}>
                             <NavLink
                               to={child.path}
+                              end
                               onClick={onClose}
                               className={({ isActive }) =>
                                 `block border-l-4 py-2 pl-11 pr-3 text-sm transition
-                                ${
-                                  isActive
-                                    ? 'border-brand bg-sand font-medium text-gray-900'
-                                    : 'border-transparent text-gray-600 hover:bg-black/5 hover:text-gray-900'
+                                ${isActive
+                                  ? 'border-brand bg-sand font-medium text-gray-900'
+                                  : 'border-transparent text-gray-600 hover:bg-black/5 hover:text-gray-900'
                                 }`
                               }
                             >
@@ -140,23 +154,25 @@ export default function Sidebar({ open, onClose }) {
                 );
               }
 
-              // Módulos normales, sin subopciones.
               return (
                 <li key={key}>
                   <NavLink
                     to={path}
+                    end
                     onClick={onClose}
                     className={({ isActive }) =>
                       `flex items-center gap-3 border-l-4 px-4 py-2.5
                       text-sm transition
-                      ${
-                        isActive
-                          ? 'border-brand bg-sand font-medium'
-                          : 'border-transparent hover:bg-black/5'
+                      ${isActive
+                        ? 'border-brand bg-sand font-medium'
+                        : 'border-transparent hover:bg-black/5'
                       }`
                     }
                   >
-                    <Icon size={18} aria-hidden="true" />
+                    {Icon && (
+                      <Icon size={18} aria-hidden="true" />
+                    )}
+
                     {label}
                   </NavLink>
                 </li>
