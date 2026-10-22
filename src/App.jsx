@@ -39,13 +39,20 @@ export default function App() {
             <Route path="rrhh" element={<HrPage />} />
 
             {/* MODULOS NUEVOS DE PRUEBA, LUEGO INTEGRAR DE FORMA ADECUADA */}
+            {/* CRM SubMODULES */}
             <Route path="crm/Dash" element={<PanelCRM />} />
             <Route path="crm/clientes" element={<Clientes />} />
             <Route path="crm/historial" element={<HistorialCRM />} />
-            <Route path="crm/segmentacion" element={< Segmentacion/>} />
-            
+            <Route path="crm/segmentacion" element={< Segmentacion/>} />            
             <Route path="crm/reportes" element={< ReportesCRM/>} />
             
+
+            {/* Produccion SubMODULES */}
+            <Route path="produccion/" element={<PanelCRM />} />
+            <Route path="produccion/clientes" element={<Clientes />} />
+            <Route path="produccion/historial" element={<HistorialCRM />} />
+            <Route path="produccion/segmentacion" element={< Segmentacion/>} />            
+            <Route path="produccion/reportes" element={< ReportesCRM/>} />
             {/* FIN */}
 
             
