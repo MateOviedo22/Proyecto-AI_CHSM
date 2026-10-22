@@ -3,14 +3,55 @@
 export const user = { name: 'Usuaria Admin', role: 'Propietaria-Gerente' };
 
 export const modules = [
-  { key: 'dashboard', label: 'Dashboard', path: '/sistema/dashboard', icon: 'LayoutDashboard' },
-  { key: 'crm', label: 'CRM y clientes', path: '/sistema/crm', icon: 'Users' },
-  { key: 'produccion', label: 'Producción', path: '/sistema/produccion', icon: 'Factory' },
-  { key: 'inventario', label: 'Inventario', path: '/sistema/inventario', icon: 'Package' },
-  { key: 'ventas', label: 'Ventas y órdenes', path: '/sistema/ventas', icon: 'ShoppingCart' },
-  { key: 'finanzas', label: 'Finanzas', path: '/sistema/finanzas', icon: 'LineChart' },
-  { key: 'rrhh', label: 'R.R.H.H', path: '/sistema/rrhh', icon: 'IdCard' },
-];
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    path: '/sistema/dashboard',
+    icon: 'LayoutDashboard',
+  },
+  {
+    key: 'crm',
+    label: 'CRM y clientes',
+    path: '/sistema/crm',
+    icon: 'Users',
+    children: [
+      { key: 'crm-panel', label: 'Panel CRM', path: '/sistema/crm/Dash' },
+      { key: 'crm-clientes', label: 'Clientes', path: '/sistema/crm/clientes' },
+      { key: 'crm-historial', label: 'Historial de clientes', path: '/sistema/crm/historial' },
+      { key: 'crm-segmentacion', label: 'Segmentación', path: '/sistema/crm/segmentacion' },
+      { key: 'crm-reportes', label: 'Reportes CRM', path: '/sistema/crm/reportes' },
+    ],
+  },
+  {
+    key: 'produccion',
+    label: 'Producción',
+    path: '/sistema/produccion',
+    icon: 'Factory',
+  },
+  {
+    key: 'inventario',
+    label: 'Inventario',
+    path: '/sistema/inventario',
+    icon: 'Package',
+  },
+  {
+    key: 'ventas',
+    label: 'Ventas y órdenes',
+    path: '/sistema/ventas',
+    icon: 'ShoppingCart',
+  },
+  {
+    key: 'finanzas',
+    label: 'Finanzas',
+    path: '/sistema/finanzas',
+    icon: 'LineChart',
+  },
+  {
+    key: 'rrhh',
+    label: 'R.R.H.H',
+    path: '/sistema/rrhh',
+    icon: 'IdCard',
+  },];
 
 export const dashboardKpis = [
   { id: 'ganancias', label: 'Ganancias totales', value: 52450, currency: true, trend: 10.6, trendLabel: 'comparado al mes anterior', icon: 'LineChart' },

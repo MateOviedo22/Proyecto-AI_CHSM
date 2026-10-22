@@ -13,6 +13,13 @@ import SalesPage from './pages/system/SalesPage';
 import FinancePage from './pages/system/FinancePage';
 import HrPage from './pages/system/HrPage';
 
+// MODULOS DE PRUEBA NUEVOS
+import PanelCRM from './pages/system/CRM/PanelCRM';
+import Clientes from './pages/system/CRM/Clientes';
+import HistorialCRM from './pages/system/CRM/HistorialCRM';
+import Segmentacion from './pages/system/CRM/SegmentacionClientes';
+import ReportesCRM from './pages/system/CRM/ReportesCRM';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -30,7 +37,20 @@ export default function App() {
             <Route path="ventas" element={<SalesPage />} />
             <Route path="finanzas" element={<FinancePage />} />
             <Route path="rrhh" element={<HrPage />} />
+
+            {/* MODULOS NUEVOS DE PRUEBA, LUEGO INTEGRAR DE FORMA ADECUADA */}
+            <Route path="crm/Dash" element={<PanelCRM />} />
+            <Route path="crm/clientes" element={<Clientes />} />
+            <Route path="crm/historial" element={<HistorialCRM />} />
+            <Route path="crm/segmentacion" element={< Segmentacion/>} />
+            
+            <Route path="crm/reportes" element={< ReportesCRM/>} />
+            
+            {/* FIN */}
+
+            
           </Route>
+        
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
