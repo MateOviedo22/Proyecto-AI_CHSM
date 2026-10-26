@@ -5,6 +5,7 @@ import StatCard from '../../components/data/StatCard';
 import IncomeExpenseChart from '../../components/data/IncomeExpenseChart';
 import InventoryAlerts from '../../components/data/InventoryAlerts';
 import { dashboardKpis, incomeVsExpenses, inventoryAlerts } from '../../data/mockData';
+import SeccionesDashboard from "./Dashboard/Secciones";
 
 export default function DashboardPage() {
   return (
@@ -17,6 +18,7 @@ export default function DashboardPage() {
         <IncomeExpenseChart data={incomeVsExpenses} />
         <InventoryAlerts alerts={inventoryAlerts} />
       </div>
+      <SeccionesDashboard />
     </>
   );
 }
