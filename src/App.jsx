@@ -41,6 +41,34 @@ import Reposicion_Alertas from './pages/system/Inventario/Reposicion_Alertas';
 import Traslados from './pages/system/Inventario/Traslados';
 import Trazabilidad from './pages/system/Inventario/Trazabilidad';
 
+
+//Modulos de Ventas
+import PanelVentas from './pages/system/Ventas/PanelVentas';
+import Cotizaciones from './pages/system/Ventas/Cotizaciones';
+import OrdenesVentas from './pages/system/Ventas/OrdenesVenta';
+import Precios_Promociones from './pages/system/Ventas/Precios_Promociones';
+import PuntodeVenta from './pages/system/Ventas/PuntodeVenta';
+import Reportes_Ventas from './pages/system/Ventas/Reportes_Ventas';
+import Cambios_Devoluciones from './pages/system/Ventas/Cambios_Devoluciones';
+import CatalogoVentas from './pages/system/Ventas/CatalogoVentas';
+
+
+//Modulos de Finanzas
+import CuentasxCobrar from './pages/system/Finanzas/CuentasxCobrar';
+import CuentasxPagar from './pages/system/Finanzas/CuentasxPagar';
+import Gastos from './pages/system/Finanzas/Gastos';
+import Informes_Finanzas from './pages/system/Finanzas/Informes_Finanzas';
+import Ingresos from './pages/system/Finanzas/Ingresos';
+import Panel_Finanzas from './pages/system/Finanzas/Panel_Finanzas';
+
+//Modulos RRHH
+import Panel_RRHH from './pages/system/RRHH/Panel_RRHH';
+import Empleados from './pages/system/RRHH/Empleados';
+import Areas_Puestos from './pages/system/RRHH/Areas_Puestos';
+import Asistencias_Horiario from './pages/system/RRHH/Asistencias_Horiario';
+import Permisos_Ausencias from './pages/system/RRHH/Permisos_Ausencias';
+import Reportes_Empleados from './pages/system/RRHH/Reportes_Empleados';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -75,24 +103,51 @@ export default function App() {
             <Route path="produccion/ordenes-produccion" element={<Ordenes_Produccion />} />
             <Route path="produccion/panel" element={< PanelProduccion />} />
             <Route path="produccion/planificacion" element={< Planificacion />} />
-            <Route path="produccion/productos-terminados" element={< Producto_terminados/>} />
-            <Route path="produccion/reportes" element={< Reportes_Produccion/>} />
+            <Route path="produccion/productos-terminados" element={< Producto_terminados />} />
+            <Route path="produccion/reportes" element={< Reportes_Produccion />} />
             {/* FIN */}
 
             {/* Inventario SubMODULES */}
             <Route path="inventario" element={< PanelInventario />} />
-            <Route path="inventario/catalogo" element={< Catalogo_Inventario/>} />
-            <Route path="inventario/materiales" element={< Catalogo_Materiales/>} />
-            <Route path="inventario/informes" element={< InformesInventario/>} />
-            <Route path="inventario/almacenes" element={<Almacenes_Ubicaciones/>} />
-            <Route path="inventario/reposiciones" element={< Reposicion_Alertas/>} />
-            <Route path="inventario/traslados" element={<Traslados/>} />
-            <Route path="inventario/trazabilidad" element={< Trazabilidad/>} />
-
-
-
+            <Route path="inventario/catalogo" element={< Catalogo_Inventario />} />
+            <Route path="inventario/materiales" element={< Catalogo_Materiales />} />
+            <Route path="inventario/informes" element={< InformesInventario />} />
+            <Route path="inventario/almacenes" element={<Almacenes_Ubicaciones />} />
+            <Route path="inventario/reposiciones" element={< Reposicion_Alertas />} />
+            <Route path="inventario/traslados" element={<Traslados />} />
+            <Route path="inventario/trazabilidad" element={< Trazabilidad />} />
             {/* FIN */}
 
+
+            {/* Ventas SubMODULES */}
+            <Route path="ventas" element={< PanelVentas />} />
+            <Route path="ventas/cotizaciones" element={< Cotizaciones />} />
+            <Route path="ventas/ordenes-venta" element={<OrdenesVentas />} />
+            <Route path="ventas/promociones" element={< Precios_Promociones />} />
+            <Route path="ventas/punto-venta" element={< PuntodeVenta />} />
+            <Route path="ventas/reportes" element={<Reportes_Ventas />} />
+            <Route path="ventas/devoluciones" element={< Cambios_Devoluciones />} />
+            <Route path="ventas/catalogo" element={< CatalogoVentas />} />
+            {/* FIN */}
+
+            {/* Finanzas SubMODULES */}
+            <Route path="finanzas" element={< Panel_Finanzas />} />
+            <Route path="finanzas/cobros" element={< CuentasxCobrar />} />
+            <Route path="finanzas/pagos" element={<CuentasxPagar />} />
+            <Route path="finanzas/gastos" element={< Gastos />} />
+            <Route path="finanzas/informes" element={< Informes_Finanzas />} />
+            <Route path="finanzas/ingresos" element={<Ingresos />} />
+            {/* FIN */}
+
+            {/* RRHH SubMODULES */}
+
+            <Route path="rrhh" element={<Panel_RRHH />} />
+            <Route path="rrhh/empleados" element={<Empleados />} />
+            <Route path="rrhh/areas-puestos" element={<Areas_Puestos />} />
+            <Route path="rrhh/asistencias-horario" element={<Asistencias_Horiario />} />
+            <Route path="rrhh/permisos-ausencias" element={<Permisos_Ausencias />} />
+            <Route path="rrhh/reportes" element={<Reportes_Empleados />} />
+            {/* FIN */}
 
           </Route>
 

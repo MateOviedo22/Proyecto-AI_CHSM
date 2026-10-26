@@ -144,18 +144,124 @@ export const modules = [
     label: 'Ventas y órdenes',
     path: '/sistema/ventas',
     icon: 'ShoppingCart',
+    children: [
+      {
+        key: 'ventas-panel',
+        label: 'Panel de ventas',
+        path: '/sistema/ventas',
+      },
+      {
+        key: 'ventas-cotizaciones',
+        label: 'Cotizaciones',
+        path: '/sistema/ventas/cotizaciones',
+      },
+      {
+        key: 'ventas-ordenes',
+        label: 'Órdenes de venta',
+        path: '/sistema/ventas/ordenes-venta',
+      },
+      {
+        key: 'ventas-punto-venta',
+        label: 'Punto de venta',
+        path: '/sistema/ventas/punto-venta',
+      },
+      {
+        key: 'ventas-catalogo',
+        label: 'Catálogo de ventas',
+        path: '/sistema/ventas/catalogo',
+      },
+      {
+        key: 'ventas-promociones',
+        label: 'Precios y promociones',
+        path: '/sistema/ventas/promociones',
+      },
+      {
+        key: 'ventas-cambios-devoluciones',
+        label: 'Cambios y devoluciones',
+        path: '/sistema/ventas/devoluciones',
+      },
+      {
+        key: 'ventas-reportes',
+        label: 'Reportes de ventas',
+        path: '/sistema/ventas/reportes',
+      },
+    ],
   },
   {
     key: 'finanzas',
     label: 'Finanzas',
     path: '/sistema/finanzas',
     icon: 'LineChart',
+    children: [
+      {
+        key: 'finanzas-panel',
+        label: 'Panel financiero',
+        path: '/sistema/finanzas',
+      },
+      {
+        key: 'finanzas-ingresos',
+        label: 'Ingresos',
+        path: '/sistema/finanzas/ingresos',
+      },
+      {
+        key: 'finanzas-gastos',
+        label: 'Gastos',
+        path: '/sistema/finanzas/gastos',
+      },
+      {
+        key: 'finanzas-cobrar',
+        label: 'Cuentas por cobrar',
+        path: '/sistema/finanzas/cobros',
+      },
+      {
+        key: 'finanzas-pagar',
+        label: 'Cuentas por pagar',
+        path: '/sistema/finanzas/pagos',
+      },
+      {
+        key: 'finanzas-informes',
+        label: 'Informes financieros',
+        path: '/sistema/finanzas/informes',
+      },
+    ],
   },
   {
     key: 'rrhh',
     label: 'R.R.H.H',
     path: '/sistema/rrhh',
     icon: 'IdCard',
+    children: [
+      {
+        key: 'rrhh-panel',
+        label: 'Panel de RRHH',
+        path: '/sistema/rrhh',
+      },
+      {
+        key: 'rrhh-empleados',
+        label: 'Empleados',
+        path: '/sistema/rrhh/empleados',
+      },
+      {
+        key: 'rrhh-areas-puestos',
+        label: 'Áreas y puestos',
+        path: '/sistema/rrhh/areas-puestos',
+      },
+      {
+        key: 'rrhh-asistencias',
+        label: 'Asistencias y horario',
+        path: '/sistema/rrhh/asistencias-horario',
+      },
+      {
+        key: 'rrhh-permisos',
+        label: 'Permisos y ausencias',
+        path: '/sistema/rrhh/permisos-ausencias',
+      },
+      {
+        key: 'rrhh-reportes',
+        label: 'Reportes de empleados',
+        path: '/sistema/rrhh/reportes',
+      },
+    ],
   },];
 
 export const dashboardKpis = [
