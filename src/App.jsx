@@ -31,6 +31,16 @@ import Planificacion from './pages/system/Produccion/Planificación';
 import Producto_terminados from './pages/system/Produccion/Productos_Terminados';
 import Reportes_Produccion from './pages/system/Produccion/Reportes_Produccion';
 
+//Modulos de Invenario
+import PanelInventario from './pages/system/Inventario/PanelInventario';
+import Catalogo_Inventario from './pages/system/Inventario/Catalogo_Inventario';
+import Catalogo_Materiales from './pages/system/Inventario/Catalogo_Materiales';
+import Almacenes_Ubicaciones from './pages/system/Inventario/Almacenes_Ubicaciones';
+import InformesInventario from './pages/system/Inventario/InformesInventario';
+import Reposicion_Alertas from './pages/system/Inventario/Reposicion_Alertas';
+import Traslados from './pages/system/Inventario/Traslados';
+import Trazabilidad from './pages/system/Inventario/Trazabilidad';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -67,6 +77,19 @@ export default function App() {
             <Route path="produccion/planificacion" element={< Planificacion />} />
             <Route path="produccion/productos-terminados" element={< Producto_terminados/>} />
             <Route path="produccion/reportes" element={< Reportes_Produccion/>} />
+            {/* FIN */}
+
+            {/* Inventario SubMODULES */}
+            <Route path="inventario" element={< PanelInventario />} />
+            <Route path="inventario/catalogo" element={< Catalogo_Inventario/>} />
+            <Route path="inventario/materiales" element={< Catalogo_Materiales/>} />
+            <Route path="inventario/informes" element={< InformesInventario/>} />
+            <Route path="inventario/almacenes" element={<Almacenes_Ubicaciones/>} />
+            <Route path="inventario/reposiciones" element={< Reposicion_Alertas/>} />
+            <Route path="inventario/traslados" element={<Traslados/>} />
+            <Route path="inventario/trazabilidad" element={< Trazabilidad/>} />
+
+
 
             {/* FIN */}
 

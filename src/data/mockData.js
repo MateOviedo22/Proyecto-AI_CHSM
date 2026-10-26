@@ -96,6 +96,48 @@ export const modules = [
     label: 'Inventario',
     path: '/sistema/inventario',
     icon: 'Package',
+    children: [
+      {
+        key: 'inventario-panel',
+        label: 'Panel de inventario',
+        path: '/sistema/inventario',
+      },
+      {
+        key: 'inventario-productos',
+        label: 'Productos',
+        path: '/sistema/inventario/catalogo',
+      },
+      {
+        key: 'inventario-materiales',
+        label: 'Materiales',
+        path: '/sistema/inventario/materiales',
+      },
+      {
+        key: 'inventario-almacenes',
+        label: 'Almacenes',
+        path: '/sistema/inventario/almacenes',
+      },
+      {
+        key: 'inventario-informes',
+        label: 'Informes',
+        path: '/sistema/inventario/informes',
+      },
+      {
+        key: 'inventario-alertas',
+        label: 'Alertas',
+        path: '/sistema/inventario/reposiciones',
+      },
+      {
+        key: 'inventario-traslados',
+        label: 'Traslados',
+        path: '/sistema/inventario/traslados',
+      },
+      {
+        key: 'inventario-trazabilidad',
+        label: 'Trazabilidad',
+        path: '/sistema/inventario/trazabilidad',
+      },
+    ],
   },
   {
     key: 'ventas',
