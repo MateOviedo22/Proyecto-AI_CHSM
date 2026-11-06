@@ -2,15 +2,22 @@ import 'dotenv/config';
 import fs from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import bcrypt from 'bcryptjs';
-import {createPostgres} from '../src/db.js';
+import pg from 'pg';
+import {migrate} from '../src/migrate.js';
 if(!process.env.DATABASE_URL) throw new Error('Configura DATABASE_URL en backend/.env');
 const {ADMIN_USER,ADMIN_PASSWORD,ADMIN_NAME,ADMIN_EMAIL}=process.env;
 if(!ADMIN_USER || !ADMIN_PASSWORD || ADMIN_PASSWORD.length<10 || !ADMIN_NAME || !ADMIN_EMAIL) throw new Error('Configura ADMIN_USER, ADMIN_PASSWORD (mínimo 10 caracteres), ADMIN_NAME y ADMIN_EMAIL en backend/.env');
-const db=createPostgres(process.env.DATABASE_URL);
+// Una sola conexión: las migraciones usan BEGIN/COMMIT explícitos.
+const db=new pg.Client({connectionString:process.env.DATABASE_URL});
+await db.connect();
 const root=new URL('../../database/',import.meta.url);
+const run=async file=>db.query(await fs.readFile(fileURLToPath(new URL(file,root)),'utf8'));
 try {
-  await db.query(await fs.readFile(fileURLToPath(new URL('01_schema.sql',root)),'utf8'));
-  if(process.env.SEED_DEMO==='true') await db.query(await fs.readFile(fileURLToPath(new URL('02_datos_demo.sql',root)),'utf8'));
+  await run('01_schema.sql');
+  if(process.env.SEED_DEMO==='true') await run('02_datos_demo.sql');
+  const applied=await migrate({exec:sql=>db.query(sql),query:(sql,params)=>db.query(sql,params)});
+  console.log(applied.length?`Migraciones aplicadas: ${applied.join(', ')}`:'No hay migraciones pendientes.');
+  if(process.env.SEED_DEMO==='true') await run('03_datos_demo_erp.sql');
   const exists=await db.query('SELECT id FROM usuarios WHERE lower(usuario)=lower($1)',[ADMIN_USER]);
   if(!exists.rows.length){
     const hash=await bcrypt.hash(ADMIN_PASSWORD,12);
@@ -18,4 +25,4 @@ try {
     console.log('Cuenta administradora creada.');
   } else console.log('La cuenta administradora ya existe; su contraseña no fue modificada.');
   console.log('Base de datos preparada.');
-} finally {await db.close()}
+} finally {await db.end()}

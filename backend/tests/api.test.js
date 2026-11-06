@@ -5,12 +5,14 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import {PGlite} from '@electric-sql/pglite';
 import {createApp} from '../src/app.js';
+import {migrate} from '../src/migrate.js';
 let pg,app,token;
 const auth=()=>({Authorization:`Bearer ${token}`});
 before(async()=>{
   pg=new PGlite();
   await pg.exec(await fs.readFile(new URL('../../database/01_schema.sql',import.meta.url),'utf8'));
   await pg.exec(await fs.readFile(new URL('../../database/02_datos_demo.sql',import.meta.url),'utf8'));
+  await migrate({exec:sql=>pg.exec(sql),query:(sql,params)=>pg.query(sql,params)});
   await pg.query("INSERT INTO usuarios(nombre,usuario,correo,password_hash,rol) VALUES($1,$2,$3,$4,'admin')",['Prueba','admin','admin@test.local',await bcrypt.hash('PruebaSegura123',4)]);
   const db={query:(sql,params=[])=>pg.query(sql,params),transaction:fn=>pg.transaction(tx=>fn(tx))};
   app=createApp({db,jwtSecret:'1234567890123456789012345678901234567890'});

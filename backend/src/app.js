@@ -6,11 +6,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Decimal from 'decimal.js';
 import { resources } from './resources.js';
+import {HttpError,fail,asyncRoute,dateValue,audit} from './http.js';
+import {exigir,guard} from './permisos.js';
+import usuarios from './routes/usuarios.js';
+export {HttpError};
 
-class HttpError extends Error { constructor(status,message) { super(message); this.status=status; } }
-const fail=(status,msg)=>{throw new HttpError(status,msg)};
-const asyncRoute=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
-const dateValue=x=>x instanceof Date ? x.toISOString().slice(0,10) : x;
 function resultRows(result, config) {
   return result.rows.map(row=>{
     const out={};
@@ -62,7 +62,6 @@ function validate(c, body, isNew) {
   if(c.table==='promociones' && clean.tipo!==undefined && !['porcentaje','fijo'].includes(clean.tipo)) fail(400,'Tipo de promoción inválido.');
   return clean;
 }
-const audit = (db,user,action,resource,id)=>db.query('INSERT INTO auditoria(usuario_id,accion,recurso,registro) VALUES($1,$2,$3,$4)',[user.id,action,resource,String(id)]);
 
 export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   if(!db || !jwtSecret || jwtSecret.length<32) throw new Error('La clave JWT debe contener al menos 32 caracteres.');
@@ -89,9 +88,14 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   });
   app.get('/api/auth/me',auth,(req,res)=>res.json({user:req.user}));
   app.use('/api',auth);
+  app.use('/api',usuarios(db));
+  app.use(['/api/ventas','/api/cotizaciones','/api/ordenes-venta'],guard('ventas'));
+  app.use('/api/compras',guard('compras'));
+  app.use(['/api/materiales','/api/movimientos'],guard('inventario'));
   app.get('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para consultar este recurso.');
+    exigir(req.user,c.modulo,'leer');
     const params=[], where=fixedWhere(c,params);
     const q=await db.query(selectSql(c)+(where.length?' WHERE '+where.join(' AND '):'')+' ORDER BY t.id DESC',params);
     res.json({data:resultRows(q,c)});
@@ -99,6 +103,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.post('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para este recurso.');
+    exigir(req.user,c.modulo,'escribir');
     const data=validate(c,req.body,true), fields=Object.keys(data), columns=fields.map(k=>c.fields[k]), vals=fields.map(k=>data[k]);
     for(const [k,v] of Object.entries(c.fixed || {})){columns.push(k); vals.push(v)}
     await db.transaction(async tx=>{
@@ -114,6 +119,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.put('/api/recursos/:resource/:id',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para este recurso.');
+    exigir(req.user,c.modulo,'escribir');
     if(!Number.isInteger(req.body?._version)) fail(400,'Falta la versión del registro; vuelve a cargar la página.');
     const data=validate(c,req.body,false); delete data.id;
     for(const key of c.immutableOnUpdate || []) delete data[key];

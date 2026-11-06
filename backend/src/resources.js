@@ -17,3 +17,7 @@ export const resources = {
   'cuentas-pagar': R('cuentas_financieras', {id:'id',proveedor:'contraparte',documento:'documento',fecha:'fecha',vencimiento:'vencimiento',monto:'monto',abonado:'abonado',estado:'estado'}, ['id','proveedor','documento','fecha','vencimiento','monto'], ['id','monto','abonado'], {abonado:0,estado:'Pendiente'}, {fixed:{tipo:'Pagar'},admin:true,computedSaldo:true}),
   actividades: R('crm_actividades', {id:'id',client:'cliente',type:'tipo',title:'titulo',description:'descripcion',date:'fecha',time:'hora',responsible:'responsable',status:'estado'}, ['id','client','type','title','date'], ['id'], {description:'',time:'',responsible:'',status:'Pendiente'})
 };
+// Módulo de permisos de cada recurso (ver permisos.js).
+const modulos={clientes:'crm',actividades:'crm',proveedores:'compras',materiales:'inventario',productos:'productos',promociones:'ventas','ordenes-produccion':'produccion',
+  empleados:'rrhh',cargos:'rrhh',asistencias:'rrhh',ausencias:'rrhh',ingresos:'finanzas',gastos:'finanzas','cuentas-cobrar':'finanzas','cuentas-pagar':'finanzas'};
+for(const [k,m] of Object.entries(modulos)) resources[k].modulo=m;

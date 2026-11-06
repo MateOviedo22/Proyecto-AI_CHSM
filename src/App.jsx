@@ -1,5 +1,8 @@
 import MovimientosInventario from './pages/system/Inventario/MovimientosInventario';
 import ComprasIntegradas from './pages/system/Compras/ComprasIntegradas';
+import Usuarios from './pages/system/AdminSeguridad/Usuarios';
+import Roles from './pages/system/AdminSeguridad/Roles';
+import Seguridad from './pages/system/AdminSeguridad/Seguridad';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -9,7 +12,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/system/DashboardPage';
 import CrmPage from './pages/system/CrmPage';
-import ProductionPage from './pages/system/ProductionPage';
 import InventoryPage from './pages/system/InventoryPage';
 import SalesPage from './pages/system/SalesPage';
 import FinancePage from './pages/system/FinancePage';
@@ -94,7 +96,11 @@ export default function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="crm" element={<PanelCRM />} />
-            <Route path="produccion" element={<ProductionPage />} />
+            <Route path="produccion" element={<Navigate to="panel" replace />} />
+            <Route path="admin" element={<Navigate to="usuarios" replace />} />
+            <Route path="admin/usuarios" element={<Usuarios />} />
+            <Route path="admin/roles" element={<Roles />} />
+            <Route path="admin/seguridad" element={<Seguridad />} />
 
             {/* MODULOS NUEVOS DE PRUEBA, LUEGO INTEGRAR DE FORMA ADECUADA */}
             {/* CRM SubMODULES */}

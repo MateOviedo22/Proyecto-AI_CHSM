@@ -7,7 +7,8 @@ const connected=new Set([
   '/sistema/inventario','/sistema/inventario/materiales','/sistema/inventario/catalogo','/sistema/inventario/trazabilidad','/sistema/ventas/punto-venta','/sistema/ventas/catalogo','/sistema/ventas/promociones','/sistema/ventas/cotizaciones','/sistema/ventas/ordenes-venta',
   '/sistema/produccion/panel','/sistema/produccion/ordenes-produccion', '/sistema/ventas','/sistema/ventas/reportes','/sistema/finanzas','/sistema/finanzas/informes','/sistema/rrhh','/sistema/rrhh/reportes',
   '/sistema/finanzas/ingresos','/sistema/finanzas/gastos','/sistema/finanzas/cobros','/sistema/finanzas/pagos',
-  '/sistema/rrhh/empleados','/sistema/rrhh/areas-puestos','/sistema/rrhh/asistencias-horario','/sistema/rrhh/permisos-ausencias'
+  '/sistema/rrhh/empleados','/sistema/rrhh/areas-puestos','/sistema/rrhh/asistencias-horario','/sistema/rrhh/permisos-ausencias',
+  '/sistema/admin/usuarios','/sistema/admin/roles','/sistema/admin/seguridad'
 ]);
 export default function AppShell(){
   const [menuOpen,setMenuOpen]=useState(false),[error,setError]=useState('');
@@ -17,9 +18,9 @@ export default function AppShell(){
   return <div className="flex min-h-screen bg-canvas">
     <Sidebar open={menuOpen} onClose={()=>setMenuOpen(false)}/>
     <div className="flex min-w-0 flex-1 flex-col"><Topbar onMenu={()=>setMenuOpen(true)}/>
-      {error && <div role="alert" className="flex justify-between bg-red-100 px-5 py-3 text-sm text-red-900"><span>{error}</span><button onClick={()=>setError('')}>Cerrar</button></div>}
-      {!connected.has(pathname) && <div role="status" className="bg-amber-100 px-5 py-3 text-sm text-amber-900"><strong>Pantalla de demostración:</strong> sus datos y acciones aún no están conectados a la base de datos. Consulta el README para conocer el alcance.</div>}
-      <main className="flex-1 p-4 sm:p-8"><Outlet/></main>
+      {error && <div role="alert" className="print:hidden flex justify-between bg-red-100 px-5 py-3 text-sm text-red-900"><span>{error}</span><button onClick={()=>setError('')}>Cerrar</button></div>}
+      {!connected.has(pathname) && <div role="status" className="print:hidden bg-amber-100 px-5 py-3 text-sm text-amber-900"><strong>Pantalla de demostración:</strong> sus datos y acciones aún no están conectados a la base de datos. Consulta el README para conocer el alcance.</div>}
+      <main className="flex-1 p-4 sm:p-8 print:p-0"><Outlet/></main>
     </div>
   </div>;
 }
