@@ -14,6 +14,7 @@ import maestros from './routes/maestros.js';
 import compras from './routes/compras.js';
 import inventario from './routes/inventario.js';
 import produccion from './routes/produccion.js';
+import traslados from './routes/traslados.js';
 export {HttpError};
 
 function resultRows(result, config) {
@@ -78,7 +79,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   if(!db || !jwtSecret || jwtSecret.length<32) throw new Error('La clave JWT debe contener al menos 32 caracteres.');
   const app=express();
   app.disable('x-powered-by');
-  app.use(helmet()); app.use(cors({origin:corsOrigin.split(',')})); app.use(express.json({limit:'256kb'}));
+  app.use(helmet()); app.use(cors({origin:corsOrigin.split(',')})); app.use('/api/traslados/:id/evidencias',express.json({limit:'3mb'})); app.use(express.json({limit:'256kb'}));
   app.get('/api/salud', asyncRoute(async(req,res)=>{await db.query('SELECT 1'); res.json({estado:'ok'});}));
   app.post('/api/auth/login', rateLimit({windowMs:15*60*1000,limit:25,standardHeaders:true,legacyHeaders:false}), asyncRoute(async(req,res)=>{
     const {username,password}=req.body || {};
@@ -109,6 +110,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.use('/api',compras(db));
   app.use('/api',inventario(db));
   app.use('/api',produccion(db));
+  app.use('/api',traslados(db));
   app.get('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para consultar este recurso.');

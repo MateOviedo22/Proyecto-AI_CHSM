@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || '/api';
+export const BASE = import.meta.env.VITE_API_URL || '/api';
 export const getToken = () => sessionStorage.getItem('sunshine-token');
 export async function api(path, options = {}) {
   const token = getToken();

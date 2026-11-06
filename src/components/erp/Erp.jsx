@@ -22,7 +22,7 @@ export function useAction(reload){
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(null);
   const run=useCallback(async(path,{method='POST',body}={},success='Operación realizada.')=>{
     if(busy) return null; setBusy(true); setNotice(null);
-    try{const r=await api(path,{method,body}); if(reload) await reload(); setNotice({ok:true,text:success}); return r?.data ?? true;}
+    try{const r=await api(path,{method,body}); if(reload) await reload(); setNotice({ok:true,text:success}); window.dispatchEvent(new CustomEvent('sunshine-error',{detail:''})); return r?.data ?? true;}
     catch(e){setNotice({ok:false,text:e.message}); reportApiError(e); return null;}
     finally{setBusy(false);}
   },[busy,reload]);
