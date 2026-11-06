@@ -113,16 +113,15 @@ export default function inventario(db){
     if(!l) fail(404,'No existe un lote con ese código.');
     const movimientos=(await db.query(`SELECT m.id,m.fecha,m.tipo,m.cantidad,m.referencia,m.motivo,a.nombre AS almacen,u.nombre AS usuario FROM movimientos_inventario m LEFT JOIN almacenes a ON a.id=m.almacen_id JOIN usuarios u ON u.id=m.usuario_id WHERE m.lote_id=$1 ORDER BY m.fecha,m.id`,[l.id])).rows.map(x=>({...x,id:Number(x.id),cantidad:Number(x.cantidad)}));
     const existencias=(await db.query('SELECT a.nombre AS almacen,e.cantidad FROM existencias e JOIN almacenes a ON a.id=e.almacen_id WHERE e.lote_id=$1 AND e.cantidad>0',[l.id])).rows.map(x=>({...x,cantidad:Number(x.cantidad)}));
-    const hay=async t=>(await db.query('SELECT to_regclass($1) IS NOT NULL AS ok',[t])).rows[0].ok;
     let origen=null, insumos=[], consumidoEn=[];
     if(l.origen==='Compra'){
       origen=(await db.query(`SELECT r.id AS recepcion_id,r.fecha,r.documento,o.id AS orden_id,p.nombre AS proveedor,p.razon_social,d.precio FROM recepciones_compra r JOIN orden_compra_detalles d ON d.id=r.orden_detalle_id JOIN ordenes_compra o ON o.id=d.orden_id JOIN proveedores p ON p.id=o.proveedor_id WHERE r.lote_id=$1`,[l.id])).rows[0]||{referencia:l.referencia};
     }
-    if(l.origen==='Producción' && await hay('orden_produccion_detalles')){
+    if(l.origen==='Producción'){
       origen=(await db.query(`SELECT o.id AS orden_id,o.fecha,o.plan_id,li.nombre AS linea,d.cantidad_planificada,d.cantidad_producida,d.aprobada,d.rechazada,ua.nombre AS autorizado_por FROM orden_produccion_detalles d JOIN ordenes_produccion o ON o.id=d.orden_id LEFT JOIN lineas_produccion li ON li.id=o.linea_id LEFT JOIN usuarios ua ON ua.id=o.autorizado_por WHERE d.lote_id=$1`,[l.id])).rows[0]||null;
       if(origen) insumos=(await db.query(`SELECT ma.nombre AS material,ma.unidad,lo.codigo AS lote,SUM(c.cantidad) AS cantidad FROM produccion_consumos c JOIN materiales ma ON ma.id=c.material_id LEFT JOIN lotes lo ON lo.id=c.lote_id WHERE c.orden_id=$1 GROUP BY ma.nombre,ma.unidad,lo.codigo ORDER BY ma.nombre`,[origen.orden_id])).rows.map(x=>({...x,cantidad:Number(x.cantidad)}));
     }
-    if(l.material_id && await hay('orden_produccion_detalles')) consumidoEn=(await db.query(`SELECT c.orden_id,SUM(c.cantidad) AS cantidad,MIN(c.fecha) AS fecha FROM produccion_consumos c WHERE c.lote_id=$1 GROUP BY c.orden_id ORDER BY fecha`,[l.id])).rows.map(x=>({...x,cantidad:Number(x.cantidad)}));
+    if(l.material_id) consumidoEn=(await db.query(`SELECT c.orden_id,SUM(c.cantidad) AS cantidad,MIN(c.fecha) AS fecha FROM produccion_consumos c WHERE c.lote_id=$1 GROUP BY c.orden_id ORDER BY fecha`,[l.id])).rows.map(x=>({...x,cantidad:Number(x.cantidad)}));
     const ventas=l.producto_id?(await db.query(`SELECT m.referencia,m.fecha,-m.cantidad AS cantidad,a.nombre AS almacen FROM movimientos_inventario m LEFT JOIN almacenes a ON a.id=m.almacen_id WHERE m.lote_id=$1 AND m.tipo='Venta' ORDER BY m.fecha`,[l.id])).rows.map(x=>({...x,cantidad:Number(x.cantidad)})):[];
     const traslados=movimientos.filter(m=>m.tipo.startsWith('Traslado'));
     res.json({data:{lote:{id:Number(l.id),codigo:l.codigo,articulo:l.articulo,articuloCodigo:l.articulo_codigo,unidad:l.unidad,tipo:l.producto_id?'Producto':'Material',origen:l.origen,referencia:l.referencia,fecha:l.fecha,vencimiento:dateValue(l.vencimiento)},

@@ -1,293 +1,62 @@
-import { useState } from 'react';
-import { CalendarDays, Plus, Search, ClipboardList } from 'lucide-react';
-import { productionPlans as initialPlans } from '../../../data/mockData';
-
-const inputClass =
-    'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-yellow-700';
-
-export default function Planificacion() {
-    const [plans, setPlans] = useState(initialPlans);
-    const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('Todos');
-    const [showForm, setShowForm] = useState(false);
-
-    const [form, setForm] = useState({
-        product: '',
-        quantity: '',
-        startDate: '',
-        dueDate: '',
-        responsible: '',
-        priority: 'Media',
-    });
-
-    const updateForm = (field, value) =>
-        setForm((previous) => ({ ...previous, [field]: value }));
-
-    const addPlan = (event) => {
-        event.preventDefault();
-
-        if (form.dueDate < form.startDate) {
-            alert('La fecha de entrega no puede ser anterior al inicio.');
-            return;
-        }
-
-        setPlans((previous) => [
-            {
-                id: `PLAN-${Date.now()}`,
-                ...form,
-                quantity: Number(form.quantity),
-                status: 'Planificada',
-            },
-            ...previous,
-        ]);
-
-        setForm({
-            product: '',
-            quantity: '',
-            startDate: '',
-            dueDate: '',
-            responsible: '',
-            priority: 'Media',
-        });
-
-        setShowForm(false);
-    };
-
-    const filteredPlans = plans.filter((plan) => {
-        const matchesSearch =
-            `${plan.id} ${plan.product} ${plan.responsible}`
-                .toLowerCase()
-                .includes(search.toLowerCase());
-
-        return (
-            matchesSearch &&
-            (filter === 'Todos' || plan.status === filter)
-        );
-    });
-
-    const statusStyle = {
-        Planificada: 'bg-blue-100 text-blue-800',
-        'En proceso': 'bg-yellow-100 text-yellow-800',
-        Completada: 'bg-green-100 text-green-800',
-        Cancelada: 'bg-red-100 text-red-800',
-    };
-
-    return (
-        <main className="space-y-6 p-4 md:p-6">
-            <header className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        Planificación de producción
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Programa y organiza las órdenes de fabricación.
-                    </p>
-                </div>
-
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="flex items-center gap-2 rounded-lg bg-yellow-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-yellow-800"
-                >
-                    <Plus size={18} />
-                    Nueva planificación
-                </button>
-            </header>
-
-            {showForm && (
-                <form
-                    onSubmit={addPlan}
-                    className="grid gap-4 rounded-xl border border-gray-200 bg-white p-5 md:grid-cols-2 lg:grid-cols-3"
-                >
-                    <h2 className="font-semibold md:col-span-2 lg:col-span-3">
-                        Datos de planificación
-                    </h2>
-
-                    <label className="space-y-1 text-sm">
-                        <span>Producto</span>
-                        <input
-                            required
-                            className={inputClass}
-                            value={form.product}
-                            onChange={(e) => updateForm('product', e.target.value)}
-                            placeholder="Ej. Bolso Elipse"
-                        />
-                    </label>
-
-                    <label className="space-y-1 text-sm">
-                        <span>Cantidad de unidades</span>
-                        <input
-                            required
-                            min="1"
-                            type="number"
-                            className={inputClass}
-                            value={form.quantity}
-                            onChange={(e) => updateForm('quantity', e.target.value)}
-                        />
-                    </label>
-
-                    <label className="space-y-1 text-sm">
-                        <span>Responsable</span>
-                        <input
-                            required
-                            className={inputClass}
-                            value={form.responsible}
-                            onChange={(e) => updateForm('responsible', e.target.value)}
-                            placeholder="Nombre del responsable"
-                        />
-                    </label>
-
-                    <label className="space-y-1 text-sm">
-                        <span>Fecha de inicio</span>
-                        <input
-                            required
-                            type="date"
-                            className={inputClass}
-                            value={form.startDate}
-                            onChange={(e) => updateForm('startDate', e.target.value)}
-                        />
-                    </label>
-
-                    <label className="space-y-1 text-sm">
-                        <span>Fecha de entrega</span>
-                        <input
-                            required
-                            type="date"
-                            min={form.startDate || undefined}
-                            className={inputClass}
-                            value={form.dueDate}
-                            onChange={(e) => updateForm('dueDate', e.target.value)}
-                        />
-                    </label>
-
-                    <label className="space-y-1 text-sm">
-                        <span>Prioridad</span>
-                        <select
-                            className={inputClass}
-                            value={form.priority}
-                            onChange={(e) => updateForm('priority', e.target.value)}
-                        >
-                            <option>Alta</option>
-                            <option>Media</option>
-                            <option>Baja</option>
-                        </select>
-                    </label>
-
-                    <div className="flex gap-2 md:col-span-2 lg:col-span-3">
-                        <button className="rounded-lg bg-yellow-700 px-4 py-2 text-sm text-white">
-                            Guardar planificación
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowForm(false)}
-                            className="rounded-lg border px-4 py-2 text-sm"
-                        >
-                            Cancelar
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            <section className="grid gap-4 sm:grid-cols-3">
-                {[
-                    ['Total de planes', plans.length],
-                    ['En proceso', plans.filter((p) => p.status === 'En proceso').length],
-                    ['Completados', plans.filter((p) => p.status === 'Completada').length],
-                ].map(([label, value]) => (
-                    <article key={label} className="rounded-xl border bg-white p-4">
-                        <p className="text-sm text-gray-500">{label}</p>
-                        <p className="mt-2 text-2xl font-bold">{value}</p>
-                    </article>
-                ))}
-            </section>
-
-            <section className="overflow-hidden rounded-xl border bg-white">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-                    <h2 className="flex items-center gap-2 font-semibold">
-                        <CalendarDays size={19} />
-                        Programa de producción
-                    </h2>
-
-                    <div className="flex flex-wrap gap-2">
-                        <div className="relative">
-                            <Search size={16} className="absolute left-3 top-3 text-gray-400" />
-                            <input
-                                className={`${inputClass} pl-9`}
-                                placeholder="Buscar..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
-
-                        <select
-                            className={inputClass}
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                        >
-                            <option>Todos</option>
-                            <option>Planificada</option>
-                            <option>En proceso</option>
-                            <option>Completada</option>
-                            <option>Cancelada</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-50 text-gray-600">
-                            <tr>
-                                {['Código', 'Producto', 'Cantidad', 'Fechas', 'Responsable', 'Prioridad', 'Estado'].map((heading) => (
-                                    <th key={heading} className="whitespace-nowrap px-4 py-3 font-medium">
-                                        {heading}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-
-                        <tbody className="divide-y">
-                            {filteredPlans.map((plan) => (
-                                <tr key={plan.id} className="hover:bg-gray-50">
-                                    <td className="whitespace-nowrap px-4 py-3 font-medium">{plan.id}</td>
-                                    <td className="px-4 py-3">{plan.product}</td>
-                                    <td className="px-4 py-3">{plan.quantity}</td>
-                                    <td className="whitespace-nowrap px-4 py-3">
-                                        {plan.startDate} – {plan.dueDate}
-                                    </td>
-                                    <td className="px-4 py-3">{plan.responsible}</td>
-                                    <td className="px-4 py-3">{plan.priority}</td>
-                                    <td className="px-4 py-3">
-                                        <select
-                                            aria-label={`Estado de ${plan.id}`}
-                                            value={plan.status}
-                                            onChange={(e) =>
-                                                setPlans((previous) =>
-                                                    previous.map((item) =>
-                                                        item.id === plan.id
-                                                            ? { ...item, status: e.target.value }
-                                                            : item
-                                                    )
-                                                )
-                                            }
-                                            className={`rounded-full px-2 py-1 text-xs font-medium ${statusStyle[plan.status] || 'bg-gray-100 text-gray-700'}`}
-                                        >
-                                            {['Planificada', 'En proceso', 'Completada', 'Cancelada'].map((status) => (
-                                                <option key={status}>{status}</option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    {filteredPlans.length === 0 && (
-                        <p className="p-8 text-center text-sm text-gray-500">
-                            <ClipboardList className="mx-auto mb-2" />
-                            No se encontraron planificaciones.
-                        </p>
-                    )}
-                </div>
-            </section>
-        </main>
-    );
+import {useState} from 'react';
+import {CalendarDays,ClipboardList,Plus,Trash2} from 'lucide-react';
+import {useApiList} from '../../../hooks/useApiList';
+import {useAuth} from '../../../context/AuthContext';
+import {puede} from '../../../utils/permisos';
+import {Header,Section,Field,Table,Cell,Badge,Notice,Stat,input,button,buttonLight,fecha,fechaHora,useAction,imprimir} from '../../../components/erp/Erp';
+const emptyLine={productoId:'',cantidad:'',lineaId:''};
+const empty={inicio:'',fin:'',notas:'',detalles:[{...emptyLine}]};
+// Plan de producción con detalle de todo lo que se producirá; firmas elaborado/revisado/autorizado y avance real vs. planificado.
+export default function Planificacion(){
+  const {user}=useAuth(); const editable=puede(user,'produccion','escribir');
+  const [planes,reload]=useApiList('/produccion/planes');
+  const [productos]=useApiList('/recursos/productos'); const [lineas]=useApiList('/recursos/lineas-produccion');
+  const {busy,notice,run}=useAction(reload);
+  const [form,setForm]=useState(empty),[editing,setEditing]=useState(null),[ver,setVer]=useState(null),[filtro,setFiltro]=useState('Todos');
+  const setLine=(i,k,v)=>setForm(f=>({...f,detalles:f.detalles.map((l,j)=>j===i?{...l,[k]:v}:l)}));
+  const body=()=>({...form,detalles:form.detalles.map(d=>({productoId:Number(d.productoId),cantidad:Number(d.cantidad),lineaId:d.lineaId?Number(d.lineaId):null}))});
+  const save=async e=>{e.preventDefault();const ok=editing?await run(`/produccion/planes/${editing.id}`,{method:'PUT',body:{...body(),_version:editing._version}},'Plan actualizado.'):await run('/produccion/planes',{body:body()},'Plan registrado en borrador.');if(ok){setForm(empty);setEditing(null);}};
+  const accion=(p,a,msg)=>run(`/produccion/planes/${p.id}/${a}`,{method:'PATCH'},msg).then(r=>r&&ver?.id===p.id&&setVer(r));
+  const lista=planes.filter(p=>filtro==='Todos'||p.estado===filtro), actual=ver&&planes.find(p=>p.id===ver.id)||ver;
+  return <div className="space-y-6">
+    <Header modulo="Producción" title="Planificación de producción" subtitle="El plan detalla qué se producirá, en qué línea y cuánto; las órdenes se validan contra el plan autorizado."/>
+    <div className="grid gap-4 sm:grid-cols-4"><Stat label="Planes" value={planes.length}/><Stat label="Autorizados" value={planes.filter(p=>p.estado==='Autorizado').length}/><Stat label="Unidades planificadas (autorizados)" value={planes.filter(p=>p.estado==='Autorizado').reduce((s,p)=>s+p.totalPlanificado,0)}/><Stat label="Cumplimiento promedio" value={`${planes.length?Math.round(planes.reduce((s,p)=>s+p.cumplimientoPct,0)/planes.length):0}%`} hint="Aprobado en calidad / planificado"/></div>
+    <Notice notice={notice}/>
+    {editable&&<Section title={editing?`Editar ${editing.id}`:'Nuevo plan'}><form onSubmit={save} className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3"><Field label="Inicio del periodo"><input required type="date" className={input} value={form.inicio} onChange={e=>setForm({...form,inicio:e.target.value})}/></Field><Field label="Fin del periodo"><input required type="date" min={form.inicio} className={input} value={form.fin} onChange={e=>setForm({...form,fin:e.target.value})}/></Field><Field label="Notas"><input className={input} value={form.notas} onChange={e=>setForm({...form,notas:e.target.value})}/></Field></div>
+      <p className="text-sm font-semibold text-gray-700">Detalle del plan</p>
+      {form.detalles.map((l,i)=><div key={i} className="grid grid-cols-[2fr_1fr_1.5fr_auto] gap-2">
+        <select required className={input} value={l.productoId} onChange={e=>setLine(i,'productoId',e.target.value)}><option value="">Producto...</option>{productos.filter(p=>p.activo).map(p=><option key={p.id} value={p.id}>{p.codigo} · {p.nombre}</option>)}</select>
+        <input required type="number" min="1" step="1" placeholder="Cantidad" className={input} value={l.cantidad} onChange={e=>setLine(i,'cantidad',e.target.value)}/>
+        <select className={input} value={l.lineaId} onChange={e=>setLine(i,'lineaId',e.target.value)}><option value="">Línea de trabajo...</option>{lineas.filter(x=>x.activa).map(x=><option key={x.id} value={x.id}>{x.nombre}</option>)}</select>
+        <button type="button" disabled={form.detalles.length===1} className="p-2 text-red-700 disabled:opacity-30" onClick={()=>setForm(f=>({...f,detalles:f.detalles.filter((_,j)=>j!==i)}))}><Trash2 size={16}/></button></div>)}
+      <div className="flex gap-3"><button type="button" className={buttonLight} onClick={()=>setForm(f=>({...f,detalles:[...f.detalles,{...emptyLine}]}))}><Plus size={14} className="inline"/> Agregar producto</button>
+        <button className={button} disabled={busy}>{editing?'Guardar cambios':'Registrar plan'}</button>{editing&&<button type="button" className={buttonLight} onClick={()=>{setEditing(null);setForm(empty)}}>Cancelar</button>}</div>
+      <p className="text-xs text-gray-500">Cada producto debe tener una ficha técnica vigente. El plan queda en borrador hasta que otra persona lo revise y gerencia lo autorice.</p>
+    </form></Section>}
+    {actual&&<Section title={`Plan ${actual.id}`} actions={<div className="flex gap-2 print:hidden"><button className={buttonLight} onClick={imprimir}>Imprimir</button><button className={buttonLight} onClick={()=>setVer(null)}>Cerrar</button></div>}>
+      <div className="mb-4 grid gap-3 text-sm sm:grid-cols-4">
+        <p><span className="block text-xs text-gray-500">Periodo</span>{fecha(actual.inicio)} – {fecha(actual.fin)}</p><p><span className="block text-xs text-gray-500">Estado</span><Badge value={actual.estado}/></p>
+        <p><span className="block text-xs text-gray-500">Elaborado por</span>{actual.elaboradoPor}</p><p><span className="block text-xs text-gray-500">Revisado por</span>{actual.revisadoPor||'Pendiente'} {actual.revisadoEn&&<span className="text-xs text-gray-500">{fechaHora(actual.revisadoEn)}</span>}</p>
+        <p><span className="block text-xs text-gray-500">Autorizado por</span>{actual.autorizadoPor||'Pendiente'} {actual.autorizadoEn&&<span className="text-xs text-gray-500">{fechaHora(actual.autorizadoEn)}</span>}</p><p className="sm:col-span-3"><span className="block text-xs text-gray-500">Notas</span>{actual.notas||'—'}</p></div>
+      <Table headers={['Producto','Línea','Planificado','En órdenes','Producido','Aprobado','Pendiente de ordenar','Cumplimiento']}>
+        {actual.detalles.map(d=><tr key={d.id}><Cell>{d.codigo} · {d.producto}</Cell><Cell>{d.linea||'—'}</Cell><Cell>{d.cantidad}</Cell><Cell>{d.ordenado}</Cell><Cell>{d.producido}</Cell><Cell>{d.aprobado}</Cell><Cell>{d.pendiente}</Cell><Cell><div className="h-2 w-24 rounded bg-gray-100"><div className="h-2 rounded bg-emerald-600" style={{width:`${Math.min(100,d.cumplimientoPct)}%`}}/></div><span className="text-xs">{d.cumplimientoPct}%</span></Cell></tr>)}
+        <tr className="font-semibold"><Cell>Total</Cell><Cell/><Cell>{actual.totalPlanificado}</Cell><Cell/><Cell>{actual.totalProducido}</Cell><Cell>{actual.totalAprobado}</Cell><Cell/><Cell>{actual.cumplimientoPct}%</Cell></tr>
+      </Table>
+      {editable&&<div className="mt-4 flex flex-wrap gap-2 print:hidden">
+        {actual.estado==='Borrador'&&<><button className={buttonLight} onClick={()=>{setEditing(actual);setForm({inicio:actual.inicio,fin:actual.fin,notas:actual.notas,detalles:actual.detalles.map(d=>({productoId:String(d.productoId),cantidad:String(d.cantidad),lineaId:d.lineaId?String(d.lineaId):''}))});setVer(null)}}>Editar</button>
+          <button className={button} disabled={busy} onClick={()=>accion(actual,'revisar','Plan revisado.')}>Marcar revisado</button><button className={buttonLight} disabled={busy} onClick={()=>accion(actual,'cancelar','Plan cancelado.')}>Cancelar</button></>}
+        {actual.estado==='Revisado'&&<>{user?.role==='admin'&&<button className={button} disabled={busy} onClick={()=>accion(actual,'autorizar','Plan autorizado.')}>Autorizar (gerencia)</button>}<button className={buttonLight} disabled={busy} onClick={()=>accion(actual,'devolver','Plan devuelto a borrador.')}>Devolver a borrador</button><button className={buttonLight} disabled={busy} onClick={()=>accion(actual,'cancelar','Plan cancelado.')}>Cancelar</button></>}
+        {actual.estado==='Autorizado'&&<button className={buttonLight} disabled={busy} onClick={()=>accion(actual,'cerrar','Plan cerrado.')}>Cerrar plan</button>}
+      </div>}
+    </Section>}
+    <Section title="Planes registrados" actions={<select className={`${input} w-44`} value={filtro} onChange={e=>setFiltro(e.target.value)}>{['Todos','Borrador','Revisado','Autorizado','Cerrado','Cancelado'].map(x=><option key={x}>{x}</option>)}</select>}>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{lista.map(p=><button key={p.id} onClick={()=>setVer(p)} className="rounded-xl border border-gray-200 p-4 text-left hover:shadow-md">
+        <div className="flex items-center justify-between"><span className="flex items-center gap-2 font-semibold"><ClipboardList size={16}/>{p.id}</span><Badge value={p.estado}/></div>
+        <p className="mt-2 flex items-center gap-1 text-sm text-gray-500"><CalendarDays size={14}/>{fecha(p.inicio)} – {fecha(p.fin)}</p>
+        <p className="mt-1 text-sm">{p.detalles.map(d=>`${d.producto} (${d.cantidad})`).join(', ')}</p>
+        <p className="mt-2 text-xs text-gray-500">Planificado {p.totalPlanificado} · aprobado {p.totalAprobado} · {p.cumplimientoPct}%</p></button>)}</div>
+      {!lista.length&&<p className="p-6 text-center text-sm text-gray-500">No hay planes registrados.</p>}
+    </Section>
+  </div>;
 }

@@ -13,6 +13,7 @@ import {moverStock,salidaFIFO,almacenId,crearLote,ALMACEN} from './stock.js';
 import maestros from './routes/maestros.js';
 import compras from './routes/compras.js';
 import inventario from './routes/inventario.js';
+import produccion from './routes/produccion.js';
 export {HttpError};
 
 function resultRows(result, config) {
@@ -107,6 +108,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.use('/api',maestros(db));
   app.use('/api',compras(db));
   app.use('/api',inventario(db));
+  app.use('/api',produccion(db));
   app.get('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para consultar este recurso.');
@@ -119,6 +121,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para este recurso.');
     exigir(req.user,c.modulo,'escribir');
+    if(c.table==='ordenes_produccion') fail(409,'Las órdenes de producción se crean con el flujo de autorización (/api/produccion/ordenes).');
     const data=validate(c,req.body,true), fields=Object.keys(data), columns=fields.map(k=>c.fields[k]);
     // El saldo inicial se registra con moverStock para que exista por almacén y en el historial.
     const conStock=['materiales','productos'].includes(c.table) && Number(data.stock)>0;
@@ -146,6 +149,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     const keys=Object.keys(data); if(!keys.length) fail(400,'No hay campos para actualizar.');
     const vals=keys.map(k=>data[k]), where=[];
     if(c.table==='finanzas_movimientos') where.push('venta_id IS NULL');
+    if(c.table==='ordenes_produccion') where.push('elaborado_por IS NULL'); // solo órdenes históricas; las nuevas siguen su flujo
     vals.push(req.params.id); where.push(`id=$${vals.length}`);
     vals.push(req.body._version); where.push(`version=$${vals.length}`);
     for(const [k,v] of Object.entries(c.fixed || {})){vals.push(v);where.push(`${k}=$${vals.length}`)}
