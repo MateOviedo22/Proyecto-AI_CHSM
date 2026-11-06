@@ -1,209 +1,35 @@
-
-import { useState } from 'react';
-import { BarChart3, ClipboardCheck, PackageCheck, TrendingUp } from 'lucide-react';
-import { productionReports } from '../../../data/mockData';
-
-export default function Reportes_Produccion() {
-    const [period, setPeriod] = useState('Mes actual');
-
-    const report = productionReports[period];
-
-    const kpis = [
-        {
-            label: 'Unidades planificadas',
-            value: report.planned,
-            icon: ClipboardCheck,
-        },
-        {
-            label: 'Unidades producidas',
-            value: report.produced,
-            icon: PackageCheck,
-        },
-        {
-            label: 'Cumplimiento',
-            value: `${Math.round((report.produced / Math.max(report.planned, 1)) * 100)}%`,
-            icon: TrendingUp,
-        },
-        {
-            label: 'Órdenes completadas',
-            value: report.completedOrders,
-            icon: BarChart3,
-        },
-    ];
-
-    const maxStageValue = Math.max(
-        ...report.stages.map((stage) => stage.quantity),
-        1
-    );
-
-    const downloadCsv = () => {
-        const rows = [
-            ['Etapa', 'Unidades producidas'],
-            ...report.stages.map((stage) => [stage.name, stage.quantity]),
-        ];
-
-        const csv = rows
-            .map((row) =>
-                row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')
-            )
-            .join('\n');
-
-        const blob = new Blob(['\uFEFF' + csv], {
-            type: 'text/csv;charset=utf-8;',
-        });
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-
-        link.href = url;
-        link.download = `reporte-produccion-${period
-            .toLowerCase()
-            .replaceAll(' ', '-')}.csv`;
-
-        link.click();
-        URL.revokeObjectURL(url);
-    };
-
-    return (
-        <main className="space-y-6 p-4 md:p-6">
-            <header className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        Reportes de producción
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Consulta el rendimiento y el cumplimiento de la fabricación.
-                    </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                    <select
-                        value={period}
-                        onChange={(e) => setPeriod(e.target.value)}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-                    >
-                        {Object.keys(productionReports).map((key) => (
-                            <option key={key}>{key}</option>
-                        ))}
-                    </select>
-
-                    <button
-                        onClick={downloadCsv}
-                        className="rounded-lg bg-yellow-700 px-4 py-2 text-sm font-medium text-white hover:bg-yellow-800"
-                    >
-                        Exportar CSV
-                    </button>
-                </div>
-            </header>
-
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {kpis.map(({ label, value, icon: Icon }) => (
-                    <article key={label} className="rounded-xl border bg-white p-5">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm text-gray-500">{label}</p>
-                            <span className="rounded-lg bg-yellow-50 p-2 text-yellow-800">
-                                <Icon size={20} />
-                            </span>
-                        </div>
-                        <p className="mt-4 text-2xl font-bold text-gray-900">{value}</p>
-                        <p className="mt-1 text-xs text-gray-500">{period}</p>
-                    </article>
-                ))}
-            </section>
-
-            <section className="grid gap-6 lg:grid-cols-2">
-                <article className="rounded-xl border bg-white p-5">
-                    <h2 className="flex items-center gap-2 font-semibold">
-                        <BarChart3 size={19} />
-                        Producción por etapa
-                    </h2>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                        Unidades registradas en cada etapa del proceso.
-                    </p>
-
-                    <div className="mt-6 space-y-5">
-                        {report.stages.map((stage) => (
-                            <div key={stage.name}>
-                                <div className="mb-2 flex justify-between gap-3 text-sm">
-                                    <span className="text-gray-700">{stage.name}</span>
-                                    <span className="font-semibold">{stage.quantity} unidades</span>
-                                </div>
-
-                                <div
-                                    className="h-3 overflow-hidden rounded-full bg-gray-100"
-                                    role="progressbar"
-                                    aria-label={stage.name}
-                                    aria-valuemin={0}
-                                    aria-valuemax={maxStageValue}
-                                    aria-valuenow={stage.quantity}
-                                >
-                                    <div
-                                        className="h-full rounded-full bg-yellow-700 transition-all"
-                                        style={{
-                                            width: `${(stage.quantity / maxStageValue) * 100}%`,
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </article>
-
-                <article className="rounded-xl border bg-white p-5">
-                    <h2 className="font-semibold">Resumen de cumplimiento</h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Comparación entre las unidades planificadas y las producidas.
-                    </p>
-
-                    <div className="mt-6 rounded-xl bg-gray-50 p-5">
-                        <p className="text-sm text-gray-500">Avance del período</p>
-                        <p className="mt-2 text-3xl font-bold text-gray-900">
-                            {Math.round((report.produced / Math.max(report.planned, 1)) * 100)}%
-                        </p>
-
-                        <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-200">
-                            <div
-                                className="h-full rounded-full bg-green-600"
-                                style={{
-                                    width: `${Math.min(
-                                        100,
-                                        (report.produced / Math.max(report.planned, 1)) * 100
-                                    )}%`,
-                                }}
-                            />
-                        </div>
-
-                        <div className="mt-4 flex justify-between gap-3 text-sm">
-                            <span className="text-gray-500">Producidas</span>
-                            <span className="font-medium">{report.produced}</span>
-                        </div>
-
-                        <div className="mt-2 flex justify-between gap-3 text-sm">
-                            <span className="text-gray-500">Pendientes de producir</span>
-                            <span className="font-medium">
-                                {Math.max(0, report.planned - report.produced)}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-                        <p className="text-sm font-medium text-yellow-900">
-                            Interpretación del período
-                        </p>
-                        <p className="mt-1 text-sm text-yellow-900">
-                            {report.produced >= report.planned
-                                ? 'Se alcanzó o superó la cantidad planificada.'
-                                : 'La producción registrada aún no alcanza la cantidad planificada.'}
-                        </p>
-                    </div>
-                </article>
-            </section>
-
-            <p className="text-xs text-gray-500">
-                Reporte demostrativo basado en datos simulados. Los resultados no
-                representan registros reales de Sunshine.
-            </p>
-        </main>
-    );
+import {useState} from 'react';
+import {useApiRead} from '../../../hooks/useApiRead';
+import {Header,Section,Table,Cell,Badge,Stat,buttonLight,money,num,fecha,imprimir} from '../../../components/erp/Erp';
+import {Barras,BarrasComparadas,Estadistica,Periodo,qs,exportarCSV} from '../../../components/erp/Graficos';
+// Reportes de producción: planificado vs. real, cumplimiento, calidad, consumo de materiales y desperdicio.
+export default function Reportes_Produccion(){
+  const [periodo,setPeriodo]=useState({desde:'',hasta:''});
+  const p=useApiRead(`/reportes/produccion${qs(periodo)}`), c=useApiRead(`/reportes/consumo-materiales${qs(periodo)}`);
+  const r=p.resumen||{}, rc=c.resumen||{};
+  return <div className="space-y-6">
+    <Header modulo="Producción" title="Reportes de producción" subtitle="Comparación entre lo planificado y lo realmente elaborado, con resultados estadísticos."><button className={buttonLight} onClick={imprimir}>Imprimir</button><button className={buttonLight} onClick={()=>exportarCSV('produccion_ordenes',p.ordenes||[])}>Exportar CSV</button></Header>
+    <Periodo valor={periodo} onChange={setPeriodo}/>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Stat label="Planificado / aprobado" value={`${num(r.planificado)} / ${num(r.aprobado)}`} hint={`${r.ordenes||0} órdenes · ${r.fueraDePlan||0} fuera de plan`}/>
+      <Stat label="Cumplimiento" value={`${num(r.cumplimientoPct)}%`} hint="Aprobado en calidad / planificado"/>
+      <Stat label="Tasa de rechazo" value={`${num(r.rechazoPct)}%`} hint={`${num(r.rechazado)} unidades rechazadas`}/>
+      <Stat label="Costo de desperdicio" value={money(rc.costoDesperdicio)} hint={`de ${money(rc.costoReal)} en materiales consumidos`}/>
+    </div>
+    <Section title="Planificado vs. aprobado por producto"><BarrasComparadas data={p.productos} x="nombre" plan="planificado" real="aprobado" nombreReal="Aprobado en calidad"/>
+      <Table headers={['Producto','Planificado','Producido','Aprobado','Rechazado','Cumplimiento','Rechazo']} min={700}>{(p.productos||[]).map(x=><tr key={x.codigo}><Cell>{x.codigo} · {x.nombre}</Cell><Cell>{x.planificado}</Cell><Cell>{x.producido}</Cell><Cell>{x.aprobado}</Cell><Cell>{x.rechazado}</Cell><Cell>{x.cumplimientoPct}%</Cell><Cell>{x.rechazoPct}%</Cell></tr>)}</Table></Section>
+    <Section title="Resultados estadísticos"><div className="grid gap-3 md:grid-cols-3">
+      <Estadistica titulo="Cumplimiento por orden" e={p.estadisticas?.cumplimientoPorOrden} unidad="%"/><Estadistica titulo="Rechazo por orden" e={p.estadisticas?.rechazoPorOrden} unidad="%"/><Estadistica titulo="Tiempo de ciclo (horas, inicio → cierre)" e={p.estadisticas?.horasDeCiclo}/>
+      <Estadistica titulo="Desperdicio por orden (% del costo)" e={c.estadisticas?.desperdicioPctPorOrden} unidad="%"/><Estadistica titulo="Desviación real vs. ficha por material" e={c.estadisticas?.desviacionPctPorMaterial} unidad="%"/></div></Section>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Section title="Cumplimiento de planes"><Table headers={['Plan','Periodo','Planificado','Aprobado','Cumplimiento']} min={480} empty={p.planes?.length?null:'Sin planes autorizados en el periodo.'}>{(p.planes||[]).map(x=><tr key={x.id}><Cell>{x.id}</Cell><Cell>{fecha(x.inicio)} – {fecha(x.fin)}</Cell><Cell>{x.planificado}</Cell><Cell>{x.aprobado}</Cell><Cell>{x.cumplimientoPct}%</Cell></tr>)}</Table></Section>
+      <Section title="Unidades producidas por semana y línea"><Barras data={(p.lineas||[]).map(x=>({...x,etiqueta:`${fecha(x.semana)} · ${x.linea}`}))} x="etiqueta" y="unidades" nombre="Unidades"/></Section>
+    </div>
+    <Section title="Consumo de materiales: teórico vs. real"><Table headers={['Material','Teórico (ficha)','Entregado','Devuelto','Consumo real','Desviación','Desperdicio','Costo desperdicio']} min={900} empty={c.materiales?.length?null:'Sin órdenes cerradas en el periodo.'}>
+      {(c.materiales||[]).map(m=><tr key={m.codigo}><Cell>{m.nombre}</Cell><Cell>{num(m.teorico,3)} {m.unidad}</Cell><Cell>{num(m.entregado,3)}</Cell><Cell>{num(m.devuelto,3)}</Cell><Cell>{num(m.real,3)}</Cell><Cell>{m.desviacionPct}%</Cell><Cell>{num(m.desperdicio,3)}</Cell><Cell>{money(m.costo_desperdicio)}</Cell></tr>)}</Table></Section>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Section title="Defectos de calidad (unidades rechazadas)"><Barras data={c.defectos} x="defecto" y="unidades" nombre="Unidades rechazadas"/></Section>
+      <Section title="Órdenes del periodo"><Table headers={['Orden','Línea','Plan.','Aprob.','Cumpl.','Estado']} min={480}>{(p.ordenes||[]).map(o=><tr key={o.id}><Cell>{o.id}</Cell><Cell>{o.linea||'—'}</Cell><Cell>{o.planificado}</Cell><Cell>{o.aprobado}</Cell><Cell>{o.cumplimientoPct}%</Cell><Cell><Badge value={o.estado}/></Cell></tr>)}</Table></Section>
+    </div>
+  </div>;
 }

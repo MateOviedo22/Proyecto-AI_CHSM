@@ -16,6 +16,7 @@ import inventario from './routes/inventario.js';
 import produccion from './routes/produccion.js';
 import traslados from './routes/traslados.js';
 import ventas from './routes/ventas.js';
+import reportes from './routes/reportes.js';
 export {HttpError};
 
 function resultRows(result, config) {
@@ -113,6 +114,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.use('/api',produccion(db));
   app.use('/api',traslados(db));
   app.use('/api',ventas(db));
+  app.use('/api',reportes(db));
   app.get('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para consultar este recurso.');

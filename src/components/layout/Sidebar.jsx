@@ -20,7 +20,7 @@ import {
 import Logo from '../ui/Logo';
 import { modules as allModules } from '../../data/mockData';
 import { useAuth } from '../../context/AuthContext';
-import { puede } from '../../utils/permisos';
+import { puede, puedeRuta } from '../../utils/permisos';
 
 const icons = {
   LayoutDashboard,
@@ -39,7 +39,7 @@ export default function Sidebar({ open, onClose }) {
   const location = useLocation();
   const { user } = useAuth();
   // Solo se muestran los módulos que el rol puede consultar (el servidor vuelve a validar cada operación).
-  const modules = allModules.filter((module) => puede(user, module.modulo, 'leer'));
+  const modules = allModules.filter((module) => puede(user, module.modulo, 'leer')).map((module) => ({ ...module, children: module.children?.filter((child) => puedeRuta(user, child.path)) }));
 
 
   const activeModules = modules.filter(

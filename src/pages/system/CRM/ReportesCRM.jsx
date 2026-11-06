@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useApiRead } from '../../../hooks/useApiRead';
+
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const COLORES = ['bg-emerald-600','bg-amber-500','bg-blue-600','bg-purple-600','bg-gray-500'];
 import {
     Download,
     Users,
@@ -10,30 +14,6 @@ import {
     FileBarChart,
     Filter,
 } from 'lucide-react';
-
-const monthlySales = [
-    { month: 'May', sales: 72000, customers: 24 },
-    { month: 'Jun', sales: 84500, customers: 29 },
-    { month: 'Jul', sales: 79000, customers: 27 },
-    { month: 'Ago', sales: 96500, customers: 34 },
-    { month: 'Sep', sales: 108000, customers: 38 },
-    { month: 'Oct', sales: 128450, customers: 42 },
-];
-
-const segmentData = [
-    { name: 'Frecuentes', count: 36, color: 'bg-emerald-600' },
-    { name: 'Ocasionales', count: 28, color: 'bg-amber-500' },
-    { name: 'Mayoristas', count: 18, color: 'bg-blue-600' },
-    { name: 'Corporativos', count: 12, color: 'bg-purple-600' },
-];
-
-const activities = [
-    { date: '2026-10-21', client: 'Hotel Las Flores', activity: 'Seguimiento de cotización', type: 'Llamada', status: 'Completada', responsible: 'Área comercial' },
-    { date: '2026-10-20', client: 'María González', activity: 'Compra de cartera artesanal', type: 'Compra', status: 'Completada', responsible: 'Ventas' },
-    { date: '2026-10-20', client: 'Tienda Artesanal Granada', activity: 'Envío de catálogo mayorista', type: 'Correo', status: 'Completada', responsible: 'Área comercial' },
-    { date: '2026-10-23', client: 'Ana Martínez', activity: 'Presentación de colección', type: 'Reunión', status: 'Pendiente', responsible: 'Área comercial' },
-    { date: '2026-10-24', client: 'Carlos López', activity: 'Seguimiento comercial', type: 'Seguimiento', status: 'Pendiente', responsible: 'Ventas' },
-];
 
 const currency = (value) =>
     new Intl.NumberFormat('es-NI', {
@@ -50,19 +30,33 @@ const dateLabel = (value) =>
     });
 
 export default function ReportesCRM() {
+    // Datos reales: ventas completadas por mes, clientes por tipo y actividades CRM registradas.
+    const ventas = useApiRead('/ventas');
+    const clientes = useApiRead('/recursos/clientes');
+    const actividadesApi = useApiRead('/recursos/actividades');
+    const monthlySales = useMemo(() => {
+        const hoy = new Date();
+        return Array.from({ length: 12 }, (_, i) => {
+            const d = new Date(hoy.getFullYear(), hoy.getMonth() - 11 + i, 1);
+            const del = ventas.filter(v => v.estado === 'Completada' && new Date(v.fecha).getFullYear() === d.getFullYear() && new Date(v.fecha).getMonth() === d.getMonth());
+            return { month: MESES[d.getMonth()], sales: del.reduce((s, v) => s + v.total, 0), customers: new Set(del.map(v => v.cliente)).size };
+        });
+    }, [ventas]);
+    const segmentData = useMemo(() => Object.entries(clientes.reduce((m, c) => { m[c.type] = (m[c.type] || 0) + 1; return m; }, {})).map(([name, count], i) => ({ name, count, color: COLORES[Math.min(i, COLORES.length - 1)] })), [clientes]);
+    const activities = actividadesApi.map(a => ({ date: a.date, client: a.client, activity: a.title, type: a.type, status: a.status, responsible: a.responsible }));
     const [period, setPeriod] = useState('6');
     const [activityFilter, setActivityFilter] = useState('Todas');
 
     const visibleSales = useMemo(
         () => monthlySales.slice(-Number(period)),
-        [period]
+        [period, monthlySales]
     );
 
     const visibleActivities = activities.filter(
         (item) => activityFilter === 'Todas' || item.status === activityFilter
     );
 
-    const maxSales = Math.max(...visibleSales.map((item) => item.sales));
+    const maxSales = Math.max(1, ...visibleSales.map((item) => item.sales));
 
     function exportCSV() {
         const rows = [
@@ -111,6 +105,7 @@ export default function ReportesCRM() {
                         >
                             <option value="3">Últimos 3 meses</option>
                             <option value="6">Últimos 6 meses</option>
+                            <option value="12">Últimos 12 meses</option>
                         </select>
                         <button
                             onClick={exportCSV}
@@ -123,10 +118,10 @@ export default function ReportesCRM() {
 
                 <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {[
-                        { label: 'Clientes registrados', value: '94', note: '+8 este mes', icon: Users, positive: true },
-                        { label: 'Ventas del periodo', value: currency(128450), note: '+12.4% vs. periodo anterior', icon: ShoppingBag, positive: true },
-                        { label: 'Clientes activos', value: '76', note: '80.9% de la cartera', icon: UserCheck, positive: true },
-                        { label: 'Seguimientos pendientes', value: '12', note: 'Requieren atención', icon: CalendarDays, positive: false },
+                        { label: 'Clientes registrados', value: String(clientes.length), note: `${clientes.filter(c => c.purchases > 0).length} con compras`, icon: Users, positive: true },
+                        { label: 'Ventas del periodo', value: currency(visibleSales.reduce((t, m) => t + m.sales, 0)), note: (() => { const ant = monthlySales.slice(-2 * Number(period), -Number(period)).reduce((t, m) => t + m.sales, 0); const act = visibleSales.reduce((t, m) => t + m.sales, 0); return ant ? `${act >= ant ? '+' : ''}${(((act - ant) / ant) * 100).toFixed(1)}% vs. periodo anterior` : 'Sin periodo anterior comparable'; })(), icon: ShoppingBag, positive: true },
+                        { label: 'Clientes activos', value: String(clientes.filter(c => c.status === 'Activo').length), note: `${clientes.length ? ((clientes.filter(c => c.status === 'Activo').length / clientes.length) * 100).toFixed(1) : 0}% de la cartera`, icon: UserCheck, positive: true },
+                        { label: 'Seguimientos pendientes', value: String(activities.filter(a => a.status === 'Pendiente').length), note: 'Requieren atención', icon: CalendarDays, positive: false },
                     ].map((stat) => {
                         const Icon = stat.icon;
                         return (

@@ -15,3 +15,8 @@ export function puede(user,modulo,accion='leer'){
   return m[accion].includes(user.role) || (accion==='leer' && m.escribir.includes(user.role));
 }
 export const ROL_LABEL={admin:'Administración / Gerencia',vendedor:'Ventas',compras:'Encargado de compras',inventario:'Inventario y logística',produccion:'Producción y calidad',operador:'Consulta'};
+// Módulo y acción requeridos por cada ruta (el primer prefijo que coincide).
+const RUTAS=[['/sistema/ventas/punto-venta','ventas','escribir'],['/sistema/ventas/devoluciones','ventas','escribir'],['/sistema/inventario/traslados','traslados','leer'],
+  ['/sistema/crm','crm'],['/sistema/compras','compras'],['/sistema/produccion','produccion'],['/sistema/inventario','inventario'],['/sistema/ventas','ventas'],
+  ['/sistema/finanzas','finanzas'],['/sistema/rrhh','rrhh'],['/sistema/admin','seguridad']];
+export function puedeRuta(user,pathname){const r=RUTAS.find(([p])=>pathname===p||pathname.startsWith(`${p}/`));return !r||puede(user,r[1],r[2]||'leer');}
