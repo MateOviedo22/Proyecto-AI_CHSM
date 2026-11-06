@@ -1,0 +1,28 @@
+{
+  "name": "sunshine-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22 <25" },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:init": "node scripts/init-db.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "decimal.js": "^10.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "supertest": "^7.0.0"
+  }
+}
