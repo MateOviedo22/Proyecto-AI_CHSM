@@ -10,7 +10,7 @@ export const modules = [
     icon: 'LayoutDashboard',
   },
   {
-    key: 'crm',
+    key: 'crm', modulo: 'crm',
     label: 'CRM y clientes',
     path: '/sistema/crm',
     icon: 'Users',
@@ -43,7 +43,7 @@ export const modules = [
     ],
   },
   {
-  key: 'compras',
+  key: 'compras', modulo: 'compras',
   label: 'Compras',
   path: '/sistema/compras',
   icon: 'ShoppingBasket',
@@ -87,7 +87,7 @@ export const modules = [
 },
 
   {
-    key: 'produccion',
+    key: 'produccion', modulo: 'produccion',
     label: 'Producción',
     path: '/sistema/produccion',
     icon: 'Factory',
@@ -95,7 +95,7 @@ export const modules = [
       {
         key: 'produccion-panel',
         label: 'Panel de producción',
-        path: '/sistema/produccion',
+        path: '/sistema/produccion/panel',
       },
       {
         key: 'produccion-etapas',
@@ -107,11 +107,11 @@ export const modules = [
         label: 'Fichas técnicas',
         path: '/sistema/produccion/fichas-tecnicas',
       },
-      // {
-      //   key: 'produccion-materiales',
-      //   label: 'Materiales',
-      //   path: '/sistema/produccion/materiales',
-      // },
+      {
+        key: 'produccion-materiales',
+        label: 'Requisiciones de materiales',
+        path: '/sistema/produccion/materiales',
+      },
       {
         key: 'produccion-ordenes',
         label: 'Órdenes de producción',
@@ -136,7 +136,7 @@ export const modules = [
     ],
   },
   {
-    key: 'inventario',
+    key: 'inventario', modulo: 'inventario',
     label: 'Inventario',
     path: '/sistema/inventario',
     icon: 'Package',
@@ -159,7 +159,7 @@ export const modules = [
       {
         key: 'inventario-proveedores',
         label: 'Proveedores',
-        path: '/sistema/inventario/proveedores',
+        path: '/sistema/compras/proveedores',
       },
       {
         key: 'inventario-almacenes',
@@ -189,7 +189,7 @@ export const modules = [
     ],
   },
   {
-    key: 'ventas',
+    key: 'ventas', modulo: 'ventas',
     label: 'Ventas y órdenes',
     path: '/sistema/ventas',
     icon: 'ShoppingCart',
@@ -237,7 +237,7 @@ export const modules = [
     ],
   },
   {
-    key: 'finanzas',
+    key: 'finanzas', modulo: 'finanzas',
     label: 'Finanzas',
     path: '/sistema/finanzas',
     icon: 'LineChart',
@@ -275,7 +275,7 @@ export const modules = [
     ],
   },
   {
-    key: 'rrhh',
+    key: 'rrhh', modulo: 'rrhh',
     label: 'R.R.H.H',
     path: '/sistema/rrhh',
     icon: 'IdCard',
@@ -310,6 +310,17 @@ export const modules = [
         label: 'Reportes de empleados',
         path: '/sistema/rrhh/reportes',
       },
+    ],
+  },
+  {
+    key: 'admin', modulo: 'seguridad',
+    label: 'Administración',
+    path: '/sistema/admin',
+    icon: 'Shield',
+    children: [
+      { key: 'admin-usuarios', label: 'Usuarios', path: '/sistema/admin/usuarios' },
+      { key: 'admin-roles', label: 'Roles y permisos', path: '/sistema/admin/roles' },
+      { key: 'admin-seguridad', label: 'Respaldos y bitácora', path: '/sistema/admin/seguridad' },
     ],
   },];
 

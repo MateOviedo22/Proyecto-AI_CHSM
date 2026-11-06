@@ -67,6 +67,65 @@ Los identificadores los genera actualmente cada formulario de la interfaz; la AP
 - `PATCH /compras/ordenes/{id}/estado`: `{ "estado":"Enviada" }` o `Cancelada` cuando el estado lo permita.
 - `POST /compras/recepciones`: `{ "ordenId":"OC-...", "cantidad":2, "documento":"FAC-1", "observaciones":"" }`. Bloquea la orden y el material, impide recibir más de lo pendiente y actualiza stock y costo promedio en la misma transacción.
 
+## Rutas añadidas en `feature/erp-integracion`
+
+Todas requieren token. El servidor valida el rol con la matriz de `backend/src/permisos.js`; la consulta `GET /roles` la devuelve. Los cambios de estado son atómicos: si un documento ya cambió, responden `409`.
+
+**Usuarios y seguridad** (solo administración):
+- `GET/POST /usuarios`, `PUT /usuarios/{id}`, `PATCH /usuarios/{id}/estado` con `{activo}`, `PATCH /usuarios/{id}/password`.
+- `GET /roles`, `GET /respaldos`, `GET /auditoria`.
+
+**Datos maestros:**
+- `GET/POST /fichas-tecnicas`, `GET/PUT /fichas-tecnicas/{id}`, `PATCH /fichas-tecnicas/{id}/estado` con `{estado:"Vigente"|"Obsoleta"}`.
+- `POST /fichas-tecnicas/{id}/nueva-version`, `GET /fichas-tecnicas/{id}/explosion?cantidad=10`.
+- Ejemplo de ficha: `{productoId, nombre, versionFicha, tiempoMinutos, materiales:[{materialId,cantidad,mermaPct,parte}], componentes:[{productoId,cantidad,parte}]}`.
+- `GET /productos/{id}/detalle`, `GET /unidades`.
+- `GET/PUT /materiales/{id}/proveedores` con `{proveedores:[{proveedorId,precioRef,plazoEntregaDias,preferido}]}` y `GET /proveedores/{id}/materiales`.
+- `GET/POST /reclamos`, `PATCH /reclamos/{id}` con `{estado,respuesta}`.
+- Recursos genéricos nuevos: `etapas`, `lineas-produccion`. Proveedores añade `razonSocial`, `ruc`, `paymentTerms`, `paymentDays`, `website` y `notes`.
+
+**Inventario:**
+- `GET/POST /almacenes`, `PUT /almacenes/{id}`.
+- `GET /existencias?almacenId=&tipo=producto|material&q=`, `GET /disponibilidad`, `PUT /minimos`.
+- `POST /inventario/movimientos` con `{tipo:"Entrada"|"Salida",almacenId,productoId|materialId,loteId?,cantidad,motivo,detalle?}`.
+- `GET /movimientos?almacenId=&productoId=&materialId=&lote=&tipo=&referencia=&q=&desde=&hasta=`.
+- `GET /lotes`, `GET /trazabilidad/lotes/{codigo}`, `GET /alertas/stock`.
+- Las rutas existentes de venta, entrada de material y alta con saldo aceptan además un `almacenId` opcional.
+
+**Compras:**
+- `POST /compras/ordenes` acepta `lineas:[{materialId,cantidad,precio}]`. El formato de una sola línea sigue funcionando.
+- `POST /compras/recepciones` con `{ordenId,ordenDetalleId,cantidad,almacenId?,lote?,vencimiento?}`; crea un lote.
+- `GET/POST /compras/devoluciones`, `PATCH /compras/devoluciones/{id}/estado` (`Enviada` descuenta el inventario).
+- `GET /proveedores/{id}/historial`.
+
+**Producción:**
+- Planes: `GET/POST /produccion/planes`, `PUT /produccion/planes/{id}`, `PATCH /produccion/planes/{id}/{revisar|devolver|autorizar|cancelar|cerrar}`.
+- Órdenes:
+  - `GET/POST /produccion/ordenes`, `GET/PUT /produccion/ordenes/{id}`.
+  - `PATCH /produccion/ordenes/{id}/{revisar|devolver|autorizar|cancelar}`.
+  - `POST /produccion/ordenes/{id}/registros`, `POST /produccion/ordenes/{id}/calidad`, `POST /produccion/ordenes/{id}/cerrar` con `{devoluciones:[{materialId,cantidad}],almacenDestinoId?}`.
+- Requisiciones y calidad: `GET /produccion/requisiciones`, `POST /produccion/requisiciones/adicional`, `PATCH /produccion/requisiciones/{id}/{aprobar|rechazar|entregar}`, `GET /produccion/calidad`.
+- Reglas:
+  - Quien elabora no revisa ni autoriza, y solo administración autoriza.
+  - Una orden sin plan, o que lo excede, exige justificación.
+  - Solo lo aprobado en calidad entra al inventario.
+
+**Traslados:**
+- `GET/POST /traslados`, `GET/PUT /traslados/{id}`.
+- `PATCH /traslados/{id}/{revisar|devolver|autorizar|despachar|recibir|cancelar}`. Para recibir: `{detalles:[{id,recibida,motivo}]}`.
+- `GET/POST /traslados/{id}/evidencias`: JSON con `contenido` en base64; JPG, PNG o PDF de hasta 2 MB.
+- `GET /traslados/evidencias/{id}`.
+
+**Ventas:**
+- `GET /ventas?desde=&hasta=&clienteId=`, `GET /ventas/{id}`.
+- `POST /ventas` devuelve también el número de `factura`.
+- `POST /ordenes-venta/{id}/facturar`. `PATCH /ordenes-venta/{id}/estado` ya no acepta `Completada`, porque la orden se completa al facturarla.
+- `GET /facturas`, `GET /facturas/{id}`, `PATCH /facturas/{id}/anular` con `{motivo}`.
+- `GET/POST /ventas/devoluciones` con `{ventaId,ventaDetalleId,cantidad,tipo:"Devolución"|"Cambio",motivo,reingresa,productoCambioId?}`.
+
+**Reportes** (`?desde=&hasta=`):
+- `GET /reportes/produccion`, `GET /reportes/consumo-materiales`, `GET /reportes/inventario`, `GET /reportes/compras-proveedores`, `GET /reportes/traslados`, `GET /reportes/ventas`, `GET /reportes/dashboard`.
+
 ## Limitaciones importantes
 
 La API cubre los procesos descritos aquí; no hay endpoints operativos para todas las pantallas de demostración. El control de permisos actual distingue `admin` y `operador` de forma básica; no sustituye una matriz de permisos por módulo y acción. Los reportes agregados y las relaciones capturadas como texto son una base para continuar el desarrollo. No se recomienda publicar el proyecto ni usarlo con información real sin las mejoras de `ALCANCE.md`.

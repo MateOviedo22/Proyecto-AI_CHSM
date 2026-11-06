@@ -91,11 +91,34 @@ Para detener la aplicación, pulsa `Ctrl+C` en ambas terminales. Desde la raíz,
 
 La venta consulta los precios y la promoción vigente más reciente en el servidor; registra el detalle, descuenta existencias, crea el movimiento de inventario y el ingreso dentro de una misma transacción. El comprobante de esta aplicación **es interno y no constituye factura fiscal**.
 
-La orden creada desde una cotización sirve para seguimiento y **no crea automáticamente un cobro ni descuenta inventario**. Estos se registran al realizar una venta en el punto de venta. Las cotizaciones conservan el precio base al momento de crearlas y no incorporan automáticamente promociones. Todavía no existe un vínculo automático entre esa orden y el cobro del punto de venta; evita registrar dos veces una operación mientras se desarrolla ese flujo.
+La orden creada desde una cotización se completa con **Facturar y completar**: registra la venta con los precios cotizados, emite la factura interna y descuenta existencias una sola vez. Las cotizaciones conservan el precio base al momento de crearlas y no incorporan automáticamente promociones. Todavía no existe un vínculo automático entre esa orden y el cobro del punto de venta; evita registrar dos veces una operación mientras se desarrolla ese flujo.
 
 La recepción de compra aumenta las existencias y recalcula el costo promedio del material. Una entrada directa desde el catálogo de materiales también incrementa el inventario, pero no crea una orden de compra. No registres la misma mercancía por ambos caminos.
 
-**Importante:** las devoluciones de compra/venta, traslados por almacén, fichas técnicas, consumo automático de materiales, varios reportes generales y otras pantallas aún contienen comportamiento de muestra. No deben tomarse como operaciones reales. Consulta la lista detallada en `docs/ALCANCE.md` y el aviso que aparece en cada pantalla no conectada.
+**Actualización:** en la rama `feature/erp-integracion` las devoluciones de compra y venta, los traslados por almacén, las fichas técnicas, la producción con consumo de materiales, los reportes y el dashboard ya operan con la base de datos (ver sección 3.1 y `docs/PROGRESO.md`). Las pantallas que aún no estén conectadas muestran un aviso amarillo.
+
+## 3.1 Ampliación ERP (rama `feature/erp-integracion`)
+
+Detalle completo, matriz de brechas y resultados de pruebas en `docs/PROGRESO.md`.
+
+- **Migraciones:** `npm run db:init` crea el esquema y aplica en orden `database/migrations/NNN_*.sql`, registrándolas en `schema_migrations`. Las migraciones son aditivas y se pueden repetir sin efecto. Con `SEED_DEMO=true` también carga `database/03_datos_demo_erp.sql`: fichas, etapas y proveedores de ejemplo.
+- **Roles:**
+  - `admin`: administración y gerencia; acceso total y autorizaciones.
+  - `vendedor`: CRM y ventas.
+  - `compras`: compras y proveedores.
+  - `inventario`: bodega, almacenes y traslados.
+  - `produccion`: producción y calidad.
+  - `operador`: rol heredado de solo consulta.
+  - La administración crea las cuentas en **Administración › Usuarios**.
+- **Separación de funciones:** quien elabora un plan, una orden de producción o un traslado no puede revisarlo ni autorizarlo. Los planes y las órdenes de producción los autoriza administración; los traslados, administración o inventario.
+- **Respaldos (RF-37…39):**
+  - `npm run db:backup` necesita `pg_dump` en el PATH. Guarda el respaldo en `backend/respaldos/` o en la carpeta indicada por `BACKUP_DIR`.
+  - `npm run db:restore -- ruta/archivo.dump --confirmar` reemplaza los datos actuales.
+  - El historial se consulta en **Administración › Respaldos y bitácora**.
+- **Flujo de inventario:**
+  - Los materiales se reciben en el **Taller** y las ventas salen de la **Tienda**.
+  - Los productos terminados entran al almacén elegido al cerrar la orden (Taller por defecto) y pasan a la tienda con un **traslado**.
+  - Todas las salidas consumen primero los lotes más antiguos.
 
 ## 4. Pruebas
 

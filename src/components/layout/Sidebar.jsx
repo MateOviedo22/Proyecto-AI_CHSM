@@ -12,12 +12,15 @@ import {
   ShoppingBasket,
   Users,
   X,
+  Shield,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 
 import Logo from '../ui/Logo';
-import { modules } from '../../data/mockData';
+import { modules as allModules } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
+import { puede, puedeRuta } from '../../utils/permisos';
 
 const icons = {
   LayoutDashboard,
@@ -29,10 +32,14 @@ const icons = {
   LineChart,
   IdCard: Contact,
   Box,
+  Shield,
 };
 
 export default function Sidebar({ open, onClose }) {
   const location = useLocation();
+  const { user } = useAuth();
+  // Solo se muestran los módulos que el rol puede consultar (el servidor vuelve a validar cada operación).
+  const modules = allModules.filter((module) => puede(user, module.modulo, 'leer')).map((module) => ({ ...module, children: module.children?.filter((child) => puedeRuta(user, child.path)) }));
 
 
   const activeModules = modules.filter(
@@ -70,7 +77,7 @@ export default function Sidebar({ open, onClose }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-56 transform
+        className={`fixed inset-y-0 left-0 z-40 w-56 transform print:hidden
           border-r border-gray-300 bg-gray-100 transition-transform duration-200
           lg:static lg:translate-x-0
           ${open ? 'translate-x-0' : '-translate-x-full'}`}

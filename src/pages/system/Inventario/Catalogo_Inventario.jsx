@@ -1,4 +1,7 @@
 import {useApiCollection} from '../../../hooks/useApiCollection';
+import {useApiList} from '../../../hooks/useApiList';
+import ProductoDetalle from '../../../components/erp/ProductoDetalle';
+import MaterialProveedores from '../../../components/erp/MaterialProveedores';
 import { useState } from 'react';
 import {
     Package,
@@ -94,9 +97,11 @@ export default function Catalogo_Inventario() {
     const [productForm, setProductForm] = useState({codigo:'',nombre:'',categoria:'Bolsos',precio:'',stock:'0',minimo:'0',descripcion:'',material:''});
     const saveProduct = e => { e.preventDefault(); setSalesProducts(prev=>[...prev,{...productForm,id:Date.now(),precio:Number(productForm.precio),stock:Number(productForm.stock),minimo:Number(productForm.minimo),activo:true}]); setShowProductForm(false); setProductForm({codigo:'',nombre:'',categoria:'Bolsos',precio:'',stock:'0',minimo:'0',descripcion:'',material:''}); };
     const [materials] = useApiCollection('materiales');
+    const [disponibilidad] = useApiList('/disponibilidad');
+    const ubicacion = (key, id) => disponibilidad.filter(d => d[key] === id).map(d => `${d.almacen}: ${d.cantidad}`).join(' · ') || 'Sin existencias';
     const products = [
-        ...salesProducts.map(p => ({id:`p-${p.id}`, code:p.codigo, name:p.nombre, category:'Productos terminados',stock:p.stock,minimum:p.minimo,unit:'unidades',location:'Almacén principal',status:p.stock===0?'Crítico':p.stock<=p.minimo?'Bajo':'Disponible'})),
-        ...materials.map(m => ({...m,id:`m-${m.id}`,category:m.type==='Insumo'?'Insumos':m.type,status:m.stock===0?'Crítico':m.stock<=m.minimum?'Bajo':'Disponible'}))
+        ...salesProducts.map(p => ({id:`p-${p.id}`, code:p.codigo, name:p.nombre, category:'Productos terminados',stock:p.stock,minimum:p.minimo,unit:'unidades',location:ubicacion('productoId',p.id),status:p.stock===0?'Crítico':p.stock<=p.minimo?'Bajo':'Disponible'})),
+        ...materials.map(m => ({...m,location:ubicacion('materialId',m.id),id:`m-${m.id}`,category:m.type==='Insumo'?'Insumos':m.type,status:m.stock===0?'Crítico':m.stock<=m.minimum?'Bajo':'Disponible'}))
     ];
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('Todas');
@@ -169,7 +174,8 @@ export default function Catalogo_Inventario() {
                         <div className="flex gap-3 sm:col-span-2"><button className="rounded-lg bg-emerald-700 px-4 py-2 text-white">Guardar producto</button><button type="button" onClick={()=>setShowProductForm(false)} className="rounded-lg border border-gray-300 px-4 py-2">Cancelar</button></div>
                     </form>
                 </section></div>}
-                {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><section role="dialog" aria-modal="true" aria-label="Detalle de inventario" className="w-full max-w-md rounded-xl bg-white p-6"><h2 className="text-lg font-bold">{selected.name}</h2><p className="mt-3 text-sm">Código: {selected.code}</p><p className="mt-2 text-sm">Existencia: {selected.stock} {selected.unit}</p><p className="mt-2 text-sm">Estado: {selected.status}</p><p className="mt-2 text-sm">Ubicación: {selected.location}</p><button onClick={()=>setSelected(null)} className="mt-5 rounded-lg border px-4 py-2">Cerrar</button></section></div>}
+                {selected && String(selected.id).startsWith('p-') && <ProductoDetalle productoId={Number(String(selected.id).slice(2))} onClose={()=>setSelected(null)}/>}
+                {selected && String(selected.id).startsWith('m-') && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><section role="dialog" aria-modal="true" aria-label="Detalle de inventario" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6"><h2 className="text-lg font-bold">{selected.name}</h2><p className="mt-3 text-sm">Código: {selected.code}</p><p className="mt-2 text-sm">Existencia: {selected.stock} {selected.unit}</p><p className="mt-2 text-sm">Estado: {selected.status}</p><p className="mt-2 text-sm">Ubicación: {selected.location}</p><MaterialProveedores materialId={Number(String(selected.id).slice(2))}/><button onClick={()=>setSelected(null)} className="mt-5 rounded-lg border px-4 py-2">Cerrar</button></section></div>}
 
                 {/* Resumen */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

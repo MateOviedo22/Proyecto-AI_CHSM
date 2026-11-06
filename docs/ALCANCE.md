@@ -1,5 +1,7 @@
 # Alcance y revisión del frontend de Sunshine
 
+> **Actualización (rama `feature/erp-integracion`):** las brechas listadas en «Pendiente» para compras, inventario, almacenes, traslados, producción, calidad, ventas, reportes y seguridad se implementaron. El estado vigente, la matriz de brechas y las pruebas están en `docs/PROGRESO.md`. Esta página conserva el análisis original como referencia.
+
 ## Qué se encontró
 
 El ZIP original era una aplicación React/Vite sin API. La sesión aceptaba cualquier credencial con el formato mínimo, los datos de muchos módulos estaban escritos en sus componentes y varias pantallas de compras usaban `localStorage`. Había catálogos distintos con productos o clientes inconsistentes. Las rutas principales de ventas, inventario, finanzas y RR. HH. estaban repetidas; también la ruta de órdenes de compra apuntaba por error a una pantalla de ventas.

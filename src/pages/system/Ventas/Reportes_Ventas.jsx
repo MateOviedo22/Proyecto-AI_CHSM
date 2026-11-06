@@ -1,4 +1,6 @@
 import {useApiRead} from '../../../hooks/useApiRead';
+import {api,reportApiError} from '../../../services/api';
+import {DocumentoModal,FacturaDoc} from '../../../components/erp/Documento';
 
 import { useMemo, useState } from 'react';
 import {
@@ -13,14 +15,6 @@ import {
     RotateCcw,
 } from 'lucide-react';
 
-const ventasIniciales = [
-    { id: 'V-1001', fecha: '2026-10-25', cliente: 'María López', metodo: 'Efectivo', estado: 'Completada', total: 1850 },
-    { id: 'V-1002', fecha: '2026-10-24', cliente: 'Ana Martínez', metodo: 'Transferencia', estado: 'Completada', total: 3200 },
-    { id: 'V-1003', fecha: '2026-10-23', cliente: 'Cliente de mostrador', metodo: 'Efectivo', estado: 'Completada', total: 950 },
-    { id: 'V-1004', fecha: '2026-10-22', cliente: 'Lucía García', metodo: 'Tarjeta', estado: 'Pendiente', total: 2450 },
-    { id: 'V-1005', fecha: '2026-10-18', cliente: 'Carolina Ruiz', metodo: 'Transferencia', estado: 'Completada', total: 4100 },
-    { id: 'V-1006', fecha: '2026-09-28', cliente: 'Elena Pérez', metodo: 'Efectivo', estado: 'Completada', total: 1650 },
-];
 
 const moneda = (valor) =>
     new Intl.NumberFormat('es-NI', {
@@ -32,6 +26,8 @@ const moneda = (valor) =>
 export default function Reportes_Ventas() {
     const ventas = useApiRead('/ventas').map(v => ({...v,id:`V-${v.id}`,fecha:String(v.fecha).slice(0,10)}));
     const [busqueda, setBusqueda] = useState('');
+    const [factura, setFactura] = useState(null);
+    const verFactura = async id => { try { setFactura((await api(`/facturas/${id}`)).data); } catch (e) { reportApiError(e); } };
     const [periodo, setPeriodo] = useState('todos');
     const [estado, setEstado] = useState('Todos');
     const [aplicados, setAplicados] = useState({
@@ -229,7 +225,7 @@ export default function Reportes_Ventas() {
                         </p>
                     </div>
                     <span className="inline-flex items-center gap-2 text-sm text-gray-500">
-                        <BarChart3 size={17} /> Datos de demostración
+                        <BarChart3 size={17} /> Ventas registradas en la base de datos
                     </span>
                 </div>
 
@@ -238,6 +234,7 @@ export default function Reportes_Ventas() {
                         <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                             <tr>
                                 <th className="px-5 py-3">Código</th>
+                                <th className="px-5 py-3">Factura</th>
                                 <th className="px-5 py-3">Fecha</th>
                                 <th className="px-5 py-3">Cliente</th>
                                 <th className="px-5 py-3">Método de pago</th>
@@ -248,7 +245,8 @@ export default function Reportes_Ventas() {
                         <tbody className="divide-y divide-gray-100">
                             {ventasFiltradas.map((venta) => (
                                 <tr key={venta.id} className="hover:bg-orange-50/40">
-                                    <td className="px-5 py-4 font-semibold text-gray-700">{venta.id}</td>
+                                    <td className="px-5 py-4 font-semibold text-gray-700">{venta.id}<span className="block text-xs font-normal text-gray-500">{venta.almacen}</span></td>
+                                    <td className="px-5 py-4">{venta.factura_id ? <button className="text-emerald-700 underline" onClick={() => verFactura(venta.factura_id)}>{venta.factura}</button> : '—'}</td>
                                     <td className="px-5 py-4 text-gray-600">{venta.fecha}</td>
                                     <td className="px-5 py-4 text-gray-700">{venta.cliente}</td>
                                     <td className="px-5 py-4 text-gray-600">{venta.metodo}</td>
@@ -265,9 +263,10 @@ export default function Reportes_Ventas() {
                                     </td>
                                 </tr>
                             ))}
+                            {factura && <tr><td><DocumentoModal titulo={`Factura ${factura.numero}`} onClose={() => setFactura(null)}><FacturaDoc f={factura} /></DocumentoModal></td></tr>}
                             {ventasFiltradas.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="px-5 py-10 text-center text-gray-500">
+                                    <td colSpan="7" className="px-5 py-10 text-center text-gray-500">
                                         No hay ventas que coincidan con los filtros.
                                     </td>
                                 </tr>

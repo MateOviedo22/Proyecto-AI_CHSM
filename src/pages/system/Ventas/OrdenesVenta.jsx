@@ -1,5 +1,6 @@
 import {api} from '../../../services/api';
 import {useApiList} from '../../../hooks/useApiList';
+import {DocumentoModal,FacturaDoc} from '../../../components/erp/Documento';
 
 import { useState } from 'react';
 import {
@@ -14,64 +15,6 @@ import {
     Ban,
 } from 'lucide-react';
 
-const ordenesIniciales = [
-    {
-        id: 'OV-1001',
-        fecha: '2026-10-25',
-        cliente: 'María López',
-        telefono: '8888-1001',
-        productos: [
-            { nombre: 'Billetera clásica', cantidad: 2, precio: 850 },
-            { nombre: 'Llavero de cuero', cantidad: 1, precio: 180 },
-        ],
-        metodo: 'Efectivo',
-        estado: 'Pendiente',
-        notas: 'Entrega en tienda',
-    },
-    {
-        id: 'OV-1002',
-        fecha: '2026-10-24',
-        cliente: 'Ana Martínez',
-        telefono: '8888-1002',
-        productos: [{ nombre: 'Bolso artesanal', cantidad: 1, precio: 2450 }],
-        metodo: 'Transferencia',
-        estado: 'En preparación',
-        notas: 'Empaque para regalo',
-    },
-    {
-        id: 'OV-1003',
-        fecha: '2026-10-23',
-        cliente: 'Lucía García',
-        telefono: '8888-1003',
-        productos: [{ nombre: 'Cartera elegante', cantidad: 1, precio: 3200 }],
-        metodo: 'Tarjeta',
-        estado: 'Enviada',
-        notas: 'Coordinar entrega con cliente',
-    },
-    {
-        id: 'OV-1004',
-        fecha: '2026-10-21',
-        cliente: 'Carolina Ruiz',
-        telefono: '8888-1004',
-        productos: [
-            { nombre: 'Monedero pequeño', cantidad: 2, precio: 450 },
-            { nombre: 'Porta documentos', cantidad: 1, precio: 1150 },
-        ],
-        metodo: 'Transferencia',
-        estado: 'Completada',
-        notas: '',
-    },
-    {
-        id: 'OV-1005',
-        fecha: '2026-10-20',
-        cliente: 'Elena Pérez',
-        telefono: '8888-1005',
-        productos: [{ nombre: 'Bolso artesanal', cantidad: 1, precio: 2450 }],
-        metodo: 'Efectivo',
-        estado: 'Cancelada',
-        notas: 'Cancelación solicitada por el cliente',
-    },
-];
 
 const estados = ['Pendiente', 'En preparación', 'Enviada', 'Completada', 'Cancelada'];
 
@@ -106,6 +49,17 @@ export default function OrdenesVentas() {
             (filtroEstado === 'Todos' || orden.estado === filtroEstado);
     });
 
+    const [metodo, setMetodo] = useState('Efectivo');
+    const [factura, setFactura] = useState(null);
+    // Facturar: registra la venta con los precios cotizados, descuenta existencias y completa la orden (una sola vez).
+    const facturar = async (id) => {
+        try {
+            const r = await api(`/ordenes-venta/${encodeURIComponent(id)}/facturar`, {method:'POST', body:{metodo}});
+            await reloadOrdenes(); setOrdenSeleccionada(null);
+            const v = await api(`/ventas/${r.data.ventaId}`); setFactura((await api(`/facturas/${v.data.factura_id}`)).data);
+            setMensaje(`Orden ${id} facturada con ${r.data.factura}; existencias actualizadas.`);
+        } catch(error){setMensaje(error.message);}
+    };
     const cambiarEstado = async (id, nuevoEstado) => {
         try {
             const result=await api(`/ordenes-venta/${encodeURIComponent(id)}/estado`,{method:'PATCH',body:{estado:nuevoEstado}});
@@ -265,18 +219,19 @@ export default function OrdenesVentas() {
                                 onChange={(e) => cambiarEstado(ordenSeleccionada.id, e.target.value)}
                                 className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5 disabled:bg-gray-100"
                             >
-                                {estados.map((estado) => <option key={estado}>{estado}</option>)}
+                                {estados.map((estado) => <option key={estado} disabled={estado === 'Completada'}>{estado}</option>)}
                             </select>
                         </label>
 
                         {!['Completada', 'Cancelada'].includes(ordenSeleccionada.estado) && (
                             <div className="mt-4 flex flex-wrap justify-end gap-2">
-                                {ordenSeleccionada.estado !== 'Completada' && (
-                                    <button onClick={() => cambiarEstado(ordenSeleccionada.id, 'Completada')}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700">
-                                        <CheckCircle2 size={16} /> Marcar completada
-                                    </button>
-                                )}
+                                <select value={metodo} onChange={e => setMetodo(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+                                    {['Efectivo', 'Transferencia', 'Tarjeta'].map(m => <option key={m}>{m}</option>)}
+                                </select>
+                                <button onClick={() => facturar(ordenSeleccionada.id)}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700">
+                                    <CheckCircle2 size={16} /> Facturar y completar
+                                </button>
                                 <button onClick={() => cambiarEstado(ordenSeleccionada.id, 'Cancelada')}
                                     className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50">
                                     <Ban size={16} /> Cancelar orden
@@ -287,8 +242,9 @@ export default function OrdenesVentas() {
                 </div>
             )}
 
+            {factura && <DocumentoModal titulo={`Factura ${factura.numero}`} onClose={() => setFactura(null)}><FacturaDoc f={factura} /></DocumentoModal>}
             <p className="text-xs text-gray-400">
-                Simulación local: los cambios de estado se mantienen en memoria mientras la página está abierta.
+                La orden se completa al facturarla: se registra la venta con los precios cotizados, se emite la factura interna y se descuentan existencias de la tienda.
             </p>
         </div>
     );

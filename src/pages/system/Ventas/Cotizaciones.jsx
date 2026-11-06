@@ -1,5 +1,6 @@
 import {api,reportApiError} from '../../../services/api';
 import {useApiCollection} from '../../../hooks/useApiCollection';
+import {DocumentoModal,CotizacionDoc} from '../../../components/erp/Documento';
 import {useApiList} from '../../../hooks/useApiList';
 
 import { useMemo, useState } from 'react';
@@ -15,6 +16,7 @@ import {
     CalendarDays,
     CircleDollarSign,
     Eye,
+    Printer,
     ArrowRightLeft,
 } from 'lucide-react';
 
@@ -27,38 +29,6 @@ const productosDemo = [
     { id: 6, nombre: 'Llavero de cuero', precio: 180 },
 ];
 
-const cotizacionesIniciales = [
-    {
-        id: 'COT-1001',
-        cliente: 'María López',
-        fecha: '2026-10-25',
-        vencimiento: '2026-11-05',
-        estado: 'Pendiente',
-        notas: 'Entrega en tienda',
-        items: [
-            { productoId: 1, cantidad: 2, precio: 850 },
-            { productoId: 6, cantidad: 2, precio: 180 },
-        ],
-    },
-    {
-        id: 'COT-1002',
-        cliente: 'Ana Martínez',
-        fecha: '2026-10-23',
-        vencimiento: '2026-11-02',
-        estado: 'Pendiente',
-        notas: 'Empaque para regalo',
-        items: [{ productoId: 2, cantidad: 1, precio: 2450 }],
-    },
-    {
-        id: 'COT-1003',
-        cliente: 'Lucía García',
-        fecha: '2026-10-18',
-        vencimiento: '2026-10-24',
-        estado: 'Vencida',
-        notas: '',
-        items: [{ productoId: 4, cantidad: 1, precio: 3200 }],
-    },
-];
 
 const moneda = (valor) =>
     new Intl.NumberFormat('es-NI', {
@@ -95,6 +65,7 @@ export default function Cotizaciones() {
     const [formulario, setFormulario] = useState(formularioInicial);
     const [editandoId, setEditandoId] = useState(null);
     const [detalle, setDetalle] = useState(null);
+    const [imprimir, setImprimir] = useState(null);
     const [ordenes, reloadOrdenes] = useApiList('/ordenes-venta');
     const ordenesGeneradas = ordenes.map(o => ({...o,items:o.productos,total:o.productos.reduce((sum,p)=>sum+p.cantidad*p.precio,0)}));
     const [mensaje, setMensaje] = useState('');
@@ -430,6 +401,10 @@ export default function Cotizaciones() {
                                                 className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50">
                                                 <Eye size={16} />
                                             </button>
+                                            <button onClick={() => setImprimir(cotizacion)} title="Imprimir cotización"
+                                                className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50">
+                                                <Printer size={16} />
+                                            </button>
                                             <button onClick={() => abrirEdicion(cotizacion)} title="Editar cotización"
                                                 disabled={cotizacion.estado !== 'Pendiente'}
                                                 className="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30">
@@ -457,6 +432,7 @@ export default function Cotizaciones() {
                 </div>
             </section>
 
+            {imprimir && <DocumentoModal titulo={`Cotización ${imprimir.id}`} onClose={() => setImprimir(null)}><CotizacionDoc c={imprimir} productos={catalogo} /></DocumentoModal>}
             {detalle && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                     onClick={() => setDetalle(null)}>
