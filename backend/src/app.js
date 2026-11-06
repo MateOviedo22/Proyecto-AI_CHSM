@@ -9,6 +9,7 @@ import { resources } from './resources.js';
 import {HttpError,fail,asyncRoute,dateValue,audit} from './http.js';
 import {exigir,guard} from './permisos.js';
 import usuarios from './routes/usuarios.js';
+import maestros from './routes/maestros.js';
 export {HttpError};
 
 function resultRows(result, config) {
@@ -27,10 +28,16 @@ function resultRows(result, config) {
     return out;
   });
 }
+// El proveedor escrito en el formulario de materiales se vincula al registro de proveedores y a material_proveedores.
+async function syncProveedor(tx,id){
+  await tx.query('UPDATE materiales m SET proveedor_id=(SELECT p.id FROM proveedores p WHERE lower(p.nombre)=lower(m.proveedor) ORDER BY p.id LIMIT 1) WHERE m.id=$1',[id]);
+  await tx.query('UPDATE material_proveedores SET preferido=false WHERE material_id=$1',[id]);
+  await tx.query('INSERT INTO material_proveedores(material_id,proveedor_id,precio_ref,preferido) SELECT id,proveedor_id,costo,true FROM materiales WHERE id=$1 AND proveedor_id IS NOT NULL ON CONFLICT (material_id,proveedor_id) DO UPDATE SET preferido=true',[id]);
+}
 function selectSql(c) {
   let base=`SELECT t.*`;
   if(c.table==='clientes') base+=`, (SELECT COUNT(*) FROM ventas v WHERE v.cliente_id=t.id AND v.estado='Completada') AS purchases, (SELECT COALESCE(SUM(v.total),0) FROM ventas v WHERE v.cliente_id=t.id AND v.estado='Completada') AS amount, (SELECT MAX(v.fecha)::date FROM ventas v WHERE v.cliente_id=t.id AND v.estado='Completada') AS last_purchase`;
-  if(c.table==='proveedores') base+=`, (SELECT COUNT(*) FROM materiales m WHERE m.proveedor=t.nombre) AS materials`;
+  if(c.table==='proveedores') base+=`, (SELECT COUNT(*) FROM material_proveedores mp WHERE mp.proveedor_id=t.id) AS materials`;
   if(c.table==='productos') base+=`, COALESCE((SELECT ROUND(GREATEST(0,CASE WHEN pr.tipo='porcentaje' THEN t.precio*(1-pr.valor/100) ELSE t.precio-pr.valor END),2) FROM promociones pr WHERE pr.producto_id=t.id AND pr.activa=true AND CURRENT_DATE BETWEEN pr.inicio AND pr.fin ORDER BY pr.id DESC LIMIT 1),t.precio) AS precio_vigente`;
   base+=` FROM ${c.table} t`;
   return base;
@@ -52,7 +59,7 @@ function validate(c, body, isNew) {
     if(c.numbers.includes(key)) {
       if(val==='' || val===null || !Number.isFinite(Number(val)) || Number(val)<0) fail(400,`El campo ${key} debe ser un número no negativo.`);
       clean[key]=Number(val);
-      if (['id','quantity','progress','stock','minimo','plazas'].includes(key) && (key!=='stock' || c.table==='productos') && !Number.isSafeInteger(clean[key])) fail(400,`El campo ${key} debe ser entero.`);
+      if (['id','quantity','progress','stock','minimo','plazas','order','paymentDays'].includes(key) && (key!=='stock' || c.table==='productos') && !Number.isSafeInteger(clean[key])) fail(400,`El campo ${key} debe ser entero.`);
     } else if (val!==null && typeof val!=='string' && typeof val!=='boolean') fail(400,`El campo ${key} no es válido.`);
     if(typeof clean[key]==='string') { clean[key]=clean[key].trim(); if(clean[key].length>1000) fail(400,`El campo ${key} es demasiado largo.`); }
   }
@@ -89,6 +96,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.get('/api/auth/me',auth,(req,res)=>res.json({user:req.user}));
   app.use('/api',auth);
   app.use('/api',usuarios(db));
+  app.use('/api',maestros(db));
   app.use(['/api/ventas','/api/cotizaciones','/api/ordenes-venta'],guard('ventas'));
   app.use('/api/compras',guard('compras'));
   app.use(['/api/materiales','/api/movimientos'],guard('inventario'));
@@ -112,6 +120,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
         const itemColumn=c.table==='materiales'?'material_id':'producto_id';
         await tx.query(`INSERT INTO movimientos_inventario(${itemColumn},tipo,cantidad,saldo,referencia,usuario_id) VALUES($1,$2,$3,$4,$5,$6)`,[data.id,'Saldo inicial',data.stock,data.stock,String(data.code || data.codigo),req.user.id]);
       }
+      if(c.table==='materiales') await syncProveedor(tx,data.id);
       await audit(tx,req.user,'crear',req.params.resource,data.id);
     });
     const q=await db.query(selectSql(c)+' WHERE t.id=$1',[data.id]); res.status(201).json({data:resultRows(q,c)[0]});
@@ -132,6 +141,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     await db.transaction(async tx=>{
       const q=await tx.query(`UPDATE ${c.table} SET ${keys.map((k,i)=>`${c.fields[k]}=$${i+1}`).join(',')},version=version+1 WHERE ${where.join(' AND ')} RETURNING id`,vals);
       if(!q.rows.length) fail(409,'El registro cambió o ya no existe. Vuelve a cargar la página.');
+      if(c.table==='materiales' && 'supplier' in data) await syncProveedor(tx,req.params.id);
       await audit(tx,req.user,'actualizar',req.params.resource,req.params.id);
     });
     const q=await db.query(selectSql(c)+' WHERE t.id=$1',[req.params.id]); res.json({data:resultRows(q,c)[0]});

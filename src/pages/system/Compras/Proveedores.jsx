@@ -1,4 +1,5 @@
 import {useApiCollection} from '../../../hooks/useApiCollection';
+import ProveedorDetalle from './ProveedorDetalle';
 
 import { useMemo, useState } from 'react';
 import {
@@ -19,63 +20,6 @@ import {
     MapPin,
 } from 'lucide-react';
 
-const initialSuppliers = [
-    {
-        id: 1,
-        code: 'PROV-001',
-        name: 'Curtidos del Norte',
-        contact: 'Carlos Martínez',
-        phone: '8888-1200',
-        email: 'ventas@curtidosnorte.com',
-        address: 'Managua, Nicaragua',
-        materials: 2,
-        status: 'Activo',
-    },
-    {
-        id: 2,
-        code: 'PROV-002',
-        name: 'Suministros León',
-        contact: 'María López',
-        phone: '8888-2450',
-        email: 'contacto@suministrosleon.com',
-        address: 'León, Nicaragua',
-        materials: 3,
-        status: 'Activo',
-    },
-    {
-        id: 3,
-        code: 'PROV-003',
-        name: 'Textiles Centro',
-        contact: 'Ana Rodríguez',
-        phone: '8888-3175',
-        email: 'ventas@textilescentro.com',
-        address: 'Managua, Nicaragua',
-        materials: 2,
-        status: 'Activo',
-    },
-    {
-        id: 4,
-        code: 'PROV-004',
-        name: 'Herrajes Nicaragua',
-        contact: 'José Pérez',
-        phone: '8888-4210',
-        email: 'herrajesnic@gmail.com',
-        address: 'Masaya, Nicaragua',
-        materials: 2,
-        status: 'Activo',
-    },
-    {
-        id: 5,
-        code: 'PROV-005',
-        name: 'Empaques S.A.',
-        contact: 'Laura Gómez',
-        phone: '8888-5290',
-        email: 'ventas@empaques.com',
-        address: 'Managua, Nicaragua',
-        materials: 1,
-        status: 'Inactivo',
-    },
-];
 
 const statuses = [
     'Todos',
@@ -93,6 +37,12 @@ const emptyForm = {
     email: '',
     address: '',
     status: 'Activo',
+    razonSocial: '',
+    ruc: '',
+    paymentTerms: 'Contado',
+    paymentDays: 0,
+    website: '',
+    notes: '',
 };
 
 export default function Proveedores() {
@@ -168,6 +118,12 @@ export default function Proveedores() {
             email: supplier.email,
             address: supplier.address,
             status: supplier.status,
+            razonSocial: supplier.razonSocial || '',
+            ruc: supplier.ruc || '',
+            paymentTerms: supplier.paymentTerms || 'Contado',
+            paymentDays: supplier.paymentDays || 0,
+            website: supplier.website || '',
+            notes: supplier.notes || '',
         });
 
         setShowForm(true);
@@ -205,7 +161,7 @@ export default function Proveedores() {
                 ...form,
                 id: Date.now(),
                 code: generateSupplierCode(
-                    suppliers.length + 1
+                    Math.max(0, ...suppliers.map((s) => Number(String(s.code).replace(/\D/g, '')) || 0)) + 1
                 ),
                 materials: 0,
             };
@@ -242,7 +198,7 @@ export default function Proveedores() {
 
                     <div>
                         <p className="text-sm font-medium text-emerald-700">
-                            Sunshine Handmade / Inventario
+                            Sunshine Handmade / Compras
                         </p>
 
                         <h1 className="mt-1 text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -434,8 +390,11 @@ export default function Proveedores() {
                                                         {supplier.name}
                                                     </p>
 
+                                                    <p className="mt-0.5 text-xs text-gray-500">
+                                                        {supplier.razonSocial}{supplier.ruc ? ` · RUC ${supplier.ruc}` : ''}
+                                                    </p>
                                                     <p className="mt-0.5 text-xs text-gray-400">
-                                                        {supplier.address}
+                                                        {supplier.address}{supplier.paymentTerms ? ` · ${supplier.paymentTerms}` : ''}
                                                     </p>
                                                 </div>
                                             </td>
@@ -672,6 +631,29 @@ export default function Proveedores() {
                             />
                         </Field>
 
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Field label="Razón social *">
+                                <input required value={form.razonSocial} onChange={(event) => setForm({ ...form, razonSocial: event.target.value })} className={inputClass} placeholder="Nombre legal registrado" />
+                            </Field>
+                            <Field label="RUC">
+                                <input value={form.ruc} onChange={(event) => setForm({ ...form, ruc: event.target.value })} className={inputClass} />
+                            </Field>
+                            <Field label="Condiciones de pago">
+                                <select value={form.paymentTerms} onChange={(event) => setForm({ ...form, paymentTerms: event.target.value, paymentDays: event.target.value === 'Contado' ? 0 : form.paymentDays })} className={inputClass}>
+                                    {['Contado', 'Crédito 15 días', 'Crédito 30 días', 'Crédito 45 días', 'Crédito 60 días', 'Anticipo 50%'].map((x) => <option key={x}>{x}</option>)}
+                                </select>
+                            </Field>
+                            <Field label="Plazo de pago (días)">
+                                <input type="number" min="0" value={form.paymentDays} onChange={(event) => setForm({ ...form, paymentDays: Number(event.target.value) })} className={inputClass} />
+                            </Field>
+                            <Field label="Sitio web">
+                                <input value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} className={inputClass} />
+                            </Field>
+                            <Field label="Notas">
+                                <input value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className={inputClass} />
+                            </Field>
+                        </div>
+
                         <div className="flex justify-end gap-2 pt-2">
 
                             <button
@@ -761,6 +743,8 @@ export default function Proveedores() {
                             />
 
                         </div>
+
+                        <ProveedorDetalle proveedor={selectedSupplier} />
 
                         <div className="flex justify-end gap-2">
 
@@ -891,7 +875,7 @@ function Modal({ title, onClose, children }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
 
-            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
+            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl">
 
                 <div className="mb-5 flex items-center justify-between gap-4">
 

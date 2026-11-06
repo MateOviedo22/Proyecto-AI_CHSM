@@ -1,22 +1,16 @@
 
 import { useState } from 'react';
+import { useApiCollection } from '../../../hooks/useApiCollection';
 import {
     Plus, Search, Pencil, CheckCircle2, Clock3, Workflow
 } from 'lucide-react';
 
-const initialStages = [
-    { id: 1, name: 'Diseño y patronaje', description: 'Preparación del diseño y patrones de corte', order: 1, duration: 45, responsible: 'Diseño', active: true },
-    { id: 2, name: 'Corte de cuero', description: 'Corte de piezas según ficha técnica', order: 2, duration: 35, responsible: 'Corte', active: true },
-    { id: 3, name: 'Preparación y costura', description: 'Unión de piezas y costuras principales', order: 3, duration: 90, responsible: 'Costura', active: true },
-    { id: 4, name: 'Ensamblaje', description: 'Montaje de herrajes y componentes', order: 4, duration: 55, responsible: 'Ensamblaje', active: true },
-    { id: 5, name: 'Control de calidad', description: 'Inspección final del producto', order: 5, duration: 20, responsible: 'Calidad', active: true },
-];
 
 const inputClass =
     'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100';
 
 export default function Etapas_Procesos() {
-    const [stages, setStages] = useState(initialStages);
+    const [stages, setStages] = useApiCollection('etapas');
     const [search, setSearch] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
