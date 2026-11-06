@@ -8,7 +8,7 @@ const connected=new Set([
   '/sistema/produccion/panel','/sistema/produccion/ordenes-produccion', '/sistema/ventas','/sistema/ventas/reportes','/sistema/finanzas','/sistema/finanzas/informes','/sistema/rrhh','/sistema/rrhh/reportes',
   '/sistema/finanzas/ingresos','/sistema/finanzas/gastos','/sistema/finanzas/cobros','/sistema/finanzas/pagos',
   '/sistema/rrhh/empleados','/sistema/rrhh/areas-puestos','/sistema/rrhh/asistencias-horario','/sistema/rrhh/permisos-ausencias',
-  '/sistema/admin/usuarios','/sistema/inventario/traslados','/sistema/produccion/planificacion','/sistema/produccion/materiales','/sistema/produccion/productos-terminados','/sistema/compras/devoluciones','/sistema/inventario/almacenes','/sistema/inventario/reposiciones','/sistema/produccion/fichas-tecnicas','/sistema/produccion/etapas','/sistema/admin/roles','/sistema/admin/seguridad'
+  '/sistema/admin/usuarios','/sistema/ventas/devoluciones','/sistema/inventario/traslados','/sistema/produccion/planificacion','/sistema/produccion/materiales','/sistema/produccion/productos-terminados','/sistema/compras/devoluciones','/sistema/inventario/almacenes','/sistema/inventario/reposiciones','/sistema/produccion/fichas-tecnicas','/sistema/produccion/etapas','/sistema/admin/roles','/sistema/admin/seguridad'
 ]);
 export default function AppShell(){
   const [menuOpen,setMenuOpen]=useState(false),[error,setError]=useState('');

@@ -1,5 +1,7 @@
 import {useApiCollection} from '../../../hooks/useApiCollection';
 import {api,reportApiError} from '../../../services/api';
+import {useApiList} from '../../../hooks/useApiList';
+import {DocumentoModal,FacturaDoc} from '../../../components/erp/Documento';
 
 import { useMemo, useState } from 'react';
 import {
@@ -15,14 +17,6 @@ import {
     X,
 } from 'lucide-react';
 
-const productosIniciales = [
-    { id: 1, nombre: 'Billetera clásica', codigo: 'BIL-001', precio: 850, stock: 12, categoria: 'Billeteras' },
-    { id: 2, nombre: 'Bolso artesanal', codigo: 'BOL-001', precio: 2450, stock: 5, categoria: 'Bolsos' },
-    { id: 3, nombre: 'Monedero pequeño', codigo: 'MON-001', precio: 450, stock: 20, categoria: 'Monederos' },
-    { id: 4, nombre: 'Cartera elegante', codigo: 'CAR-001', precio: 3200, stock: 4, categoria: 'Carteras' },
-    { id: 5, nombre: 'Porta documentos', codigo: 'POR-001', precio: 1150, stock: 8, categoria: 'Accesorios' },
-    { id: 6, nombre: 'Llavero de cuero', codigo: 'LLA-001', precio: 180, stock: 30, categoria: 'Accesorios' },
-];
 
 const moneda = (valor) =>
     new Intl.NumberFormat('es-NI', {
@@ -33,7 +27,13 @@ const moneda = (valor) =>
 
 export default function PuntodeVenta() {
     const [catalogo, , reloadProductos] = useApiCollection('productos');
-    const productos = catalogo.filter(p => p.activo).map(p=>({...p,precio:p.precioVigente}));
+    const [almacenes] = useApiList('/almacenes');
+    const [disponibilidad, reloadDisp] = useApiList('/disponibilidad');
+    const [almacenSel, setAlmacenSel] = useState('');
+    const almacenId = Number(almacenSel) || almacenes.find(a => a.tipo === 'Tienda' && a.activo)?.id;
+    // El stock mostrado es la existencia del almacén de venta seleccionado (Tienda por defecto).
+    const productos = catalogo.filter(p => p.activo).map(p=>({...p,precio:p.precioVigente,stock:disponibilidad.filter(d => d.productoId === p.id && d.almacenId === almacenId).reduce((s, d) => s + d.cantidad, 0)}));
+    const [factura, setFactura] = useState(null);
     const [clientes] = useApiCollection('clientes');
     const [clienteId, setClienteId] = useState('');
     const [guardando, setGuardando] = useState(false);
@@ -118,12 +118,12 @@ export default function PuntodeVenta() {
         try {
             const respuesta = await api('/ventas', {method:'POST', body:{
                 cliente: cliente.trim() || 'Cliente de mostrador', clienteId: clienteId || null,
-                metodo: metodoPago, porcentajeDescuento: Number(descuento) || 0,
+                metodo: metodoPago, porcentajeDescuento: Number(descuento) || 0, almacenId,
                 items: carrito.map(item => ({productoId:item.id,cantidad:item.cantidad}))
             }});
             setComprobante({...respuesta.data, fecha: new Date(respuesta.data.fecha).toLocaleString('es-NI')});
             setCarrito([]); setDescuento(0); setMensaje('Venta registrada correctamente.');
-            await reloadProductos();
+            await Promise.all([reloadProductos(), reloadDisp()]);
         } catch (error) { setMensaje(error.message); reportApiError(error); }
         finally { setGuardando(false); }
     };
@@ -210,6 +210,12 @@ export default function PuntodeVenta() {
                         </span>
                     </div>
 
+                    <label className="mt-5 block text-sm font-medium text-gray-700">
+                        Almacén de venta
+                        <select value={almacenSel || almacenId || ''} onChange={e => { setAlmacenSel(e.target.value); setCarrito([]); }} className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5">
+                            {almacenes.filter(a => a.activo).map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                        </select>
+                    </label>
                     <label className="mt-5 block text-sm font-medium text-gray-700">
                         Cliente registrado (opcional)
                         <select value={clienteId} onChange={e => { const c = clientes.find(x => x.id === e.target.value); setClienteId(e.target.value); if (c) setCliente(c.name); }} className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5">
@@ -335,7 +341,7 @@ export default function PuntodeVenta() {
                             <div>
                                 <h2 className="font-semibold text-green-900">Venta registrada</h2>
                                 <p className="mt-1 text-sm text-green-800">
-                                    Comprobante {comprobante.id} · {comprobante.fecha}
+                                    Factura {comprobante.factura} · Venta {comprobante.id} · {comprobante.fecha}
                                 </p>
                                 <p className="mt-1 text-sm text-green-800">
                                     Cliente: {comprobante.cliente} · Pago: {comprobante.metodo}
@@ -343,10 +349,10 @@ export default function PuntodeVenta() {
                             </div>
                         </div>
                         <button
-                            onClick={() => window.print()}
+                            onClick={async () => { try { const v = await api(`/ventas/${comprobante.ventaId}`); setFactura((await api(`/facturas/${v.data.factura_id}`)).data); } catch (e) { reportApiError(e); } }}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-300 bg-white px-4 py-2 text-sm font-medium text-green-800 hover:bg-green-100"
                         >
-                            <Receipt size={17} /> Imprimir comprobante
+                            <Receipt size={17} /> Ver e imprimir factura
                         </button>
                     </div>
                     <div className="mt-4 space-y-2 border-t border-green-200 pt-4">
@@ -363,8 +369,9 @@ export default function PuntodeVenta() {
                 </section>
             )}
 
+            {factura && <DocumentoModal titulo={`Factura ${factura.numero}`} onClose={() => setFactura(null)}><FacturaDoc f={factura} /></DocumentoModal>}
             <p className="text-xs text-gray-400">
-                El comprobante es interno y no sustituye una factura fiscal.
+                La factura es un comprobante interno y no sustituye la factura fiscal.
             </p>
         </div>
     );

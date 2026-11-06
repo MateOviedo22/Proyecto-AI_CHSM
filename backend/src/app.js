@@ -15,6 +15,7 @@ import compras from './routes/compras.js';
 import inventario from './routes/inventario.js';
 import produccion from './routes/produccion.js';
 import traslados from './routes/traslados.js';
+import ventas from './routes/ventas.js';
 export {HttpError};
 
 function resultRows(result, config) {
@@ -111,6 +112,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.use('/api',inventario(db));
   app.use('/api',produccion(db));
   app.use('/api',traslados(db));
+  app.use('/api',ventas(db));
   app.get('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para consultar este recurso.');
@@ -150,7 +152,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     for(const key of c.immutableOnUpdate || []) delete data[key];
     const keys=Object.keys(data); if(!keys.length) fail(400,'No hay campos para actualizar.');
     const vals=keys.map(k=>data[k]), where=[];
-    if(c.table==='finanzas_movimientos') where.push('venta_id IS NULL');
+    if(c.table==='finanzas_movimientos') where.push('venta_id IS NULL','id>0'); // los movimientos automáticos (ventas, devoluciones) no se editan
     if(c.table==='ordenes_produccion') where.push('elaborado_por IS NULL'); // solo órdenes históricas; las nuevas siguen su flujo
     vals.push(req.params.id); where.push(`id=$${vals.length}`);
     vals.push(req.body._version); where.push(`version=$${vals.length}`);
@@ -172,58 +174,6 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     for(const [k,v] of Object.entries(c.fixed || {})){vals.push(v);where.push(`${k}=$${vals.length}`)}
     await db.transaction(async tx=>{const q=await tx.query(`DELETE FROM ${c.table} WHERE ${where.join(' AND ')} RETURNING id`,vals); if(!q.rows.length) fail(404,'Registro no encontrado.'); await audit(tx,req.user,'eliminar',req.params.resource,req.params.id);});
     res.status(204).end();
-  }));
-  app.get('/api/ventas',asyncRoute(async(req,res)=>{
-    const q=await db.query('SELECT id,cliente_nombre AS cliente,fecha,metodo,subtotal,descuento,total,estado FROM ventas ORDER BY fecha DESC LIMIT 500');
-    res.json({data:q.rows.map(row=>({...row,id:Number(row.id),subtotal:Number(row.subtotal),descuento:Number(row.descuento),total:Number(row.total)}))});
-  }));
-  // Registra una venta completa: valida disponibilidad en el almacén, descuenta stock por lote (FIFO),
-  // guarda el detalle, el ingreso financiero y la auditoría. Reutilizada por el POS y por la facturación de órdenes.
-  async function registrarVenta(tx,user,{cliente='Cliente de mostrador',clienteId=null,metodo='Efectivo',porcentajeDescuento=0,items,almacenId:alm=null,ordenVentaId=null,preciosFijos=null}){
-    if(typeof cliente!=='string'||!cliente.trim()||cliente.length>200) fail(400,'Indica un cliente válido.');
-    if(!['Efectivo','Transferencia','Tarjeta'].includes(metodo)) fail(400,'Método de pago inválido.');
-    if(!Array.isArray(items)||!items.length||items.length>100) fail(400,'Agrega entre 1 y 100 productos.');
-    const pct=Number(porcentajeDescuento); if(!Number.isFinite(pct)||pct<0||pct>100) fail(400,'El descuento debe estar entre 0 y 100.');
-    const ids=new Set();
-    for(const item of items){
-      if(!Number.isSafeInteger(Number(item.productoId)) || Number(item.productoId)<=0 || !Number.isSafeInteger(Number(item.cantidad)) || Number(item.cantidad)<=0) fail(400,'Los productos y cantidades deben ser válidos.');
-      if(ids.has(Number(item.productoId))) fail(400,'No repitas un producto en el carrito.'); ids.add(Number(item.productoId));
-    }
-    const almacen=await almacenId(tx,alm,ALMACEN.TIENDA);
-    let lines=[], subtotal=new Decimal(0);
-    // Orden de bloqueo estable para evitar interbloqueos entre ventas simultáneas.
-    for(const item of [...items].sort((a,b)=>Number(a.productoId)-Number(b.productoId))){
-      const q=await tx.query(`SELECT p.id,p.codigo,p.nombre,p.existencia,p.activo,COALESCE((SELECT ROUND(GREATEST(0,CASE WHEN pr.tipo='porcentaje' THEN p.precio*(1-pr.valor/100) ELSE p.precio-pr.valor END),2) FROM promociones pr WHERE pr.producto_id=p.id AND pr.activa=true AND CURRENT_DATE BETWEEN pr.inicio AND pr.fin ORDER BY pr.id DESC LIMIT 1),p.precio) AS precio FROM productos p WHERE p.id=$1 FOR UPDATE`,[Number(item.productoId)]);
-      const p=q.rows[0]; if(!p || !p.activo) fail(400,'Hay un producto inexistente o inactivo.');
-      const qty=Number(item.cantidad), precio=preciosFijos?.has(Number(p.id))?preciosFijos.get(Number(p.id)):Number(p.precio);
-      const line=new Decimal(precio).times(qty).toDecimalPlaces(2); subtotal=subtotal.plus(line);
-      lines.push({id:Number(p.id),nombre:p.nombre,codigo:p.codigo,precio,cantidad:qty,subtotal:line.toFixed(2)});
-    }
-    const descuento=subtotal.times(pct).div(100).toDecimalPlaces(2), total=subtotal.minus(descuento);
-    if(clienteId){const c=await tx.query('SELECT id FROM clientes WHERE id=$1 AND estado=$2',[clienteId,'Activo']); if(!c.rows.length) fail(400,'El cliente seleccionado no existe o está inactivo.');}
-    const created=await tx.query('INSERT INTO ventas(cliente_id,cliente_nombre,metodo,subtotal,descuento,total,usuario_id,almacen_id,orden_venta_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,fecha',[clienteId,cliente.trim(),metodo,subtotal.toFixed(2),descuento.toFixed(2),total.toFixed(2),user.id,almacen,ordenVentaId]);
-    const saleId=Number(created.rows[0].id);
-    for(const l of lines){
-      await tx.query('INSERT INTO venta_detalles(venta_id,producto_id,cantidad,precio,subtotal) VALUES($1,$2,$3,$4,$5)',[saleId,l.id,l.cantidad,l.precio,l.subtotal]);
-      l.lotes=await salidaFIFO(tx,{almacenId:almacen,productoId:l.id,cantidad:l.cantidad,tipo:'Venta',referencia:`VENTA-${saleId}`,usuarioId:user.id});
-      l.stock=Number((await tx.query('SELECT existencia FROM productos WHERE id=$1',[l.id])).rows[0].existencia);
-    }
-    await tx.query("INSERT INTO finanzas_movimientos(id,tipo,fecha,concepto,categoria,monto,metodo,estado,venta_id) VALUES($1,'Ingreso',CURRENT_DATE,$2,'Ventas',$3,$4,'Confirmado',$5)",[-saleId,`Venta #${saleId}`,total.toFixed(2),metodo,saleId]);
-    const factura=await emitirFactura(tx,user,{ventaId:saleId,clienteId,cliente:cliente.trim(),subtotal,descuento,total});
-    await audit(tx,user,'registrar','ventas',saleId);
-    return {id:`V-${saleId}`,ventaId:saleId,factura,cliente:cliente.trim(),fecha:created.rows[0].fecha,metodo,almacenId:almacen,productos:lines,subtotal:Number(subtotal),descuento:Number(descuento),total:Number(total)};
-  }
-  // Comprobante interno numerado (no fiscal). Se activa con la migración 007; antes devuelve null.
-  async function emitirFactura(tx,user,{ventaId,clienteId,cliente,subtotal,descuento,total}){
-    const ok=(await tx.query("SELECT to_regclass('facturas') IS NOT NULL AS ok")).rows[0].ok; if(!ok) return null;
-    const n=(await tx.query("SELECT nextval('factura_numero_seq') AS n")).rows[0].n, numero=`FAC-${String(n).padStart(6,'0')}`;
-    await tx.query('INSERT INTO facturas(numero,venta_id,cliente_id,cliente_nombre,subtotal,descuento,total,usuario_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[numero,ventaId,clienteId,cliente,subtotal.toFixed(2),descuento.toFixed(2),total.toFixed(2),user.id]);
-    return numero;
-  }
-  app.post('/api/ventas',asyncRoute(async(req,res)=>{
-    const {cliente,clienteId,metodo,porcentajeDescuento,items,almacenId:alm}=req.body || {};
-    const sale=await db.transaction(tx=>registrarVenta(tx,req.user,{cliente,clienteId,metodo,porcentajeDescuento,items,almacenId:alm}));
-    res.status(201).json({data:sale});
   }));
   app.post('/api/materiales/:id/entradas',asyncRoute(async(req,res)=>{
     const {quantity,unitCost,supplier='',invoice='',date=null,notes='',almacenId:alm=null,lote=''}=req.body||{};
@@ -312,7 +262,7 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   }));
   app.get('/api/ordenes-venta',asyncRoute(async(req,res)=>res.json({data:await orderRows(db)})));
   app.patch('/api/ordenes-venta/:id/estado',asyncRoute(async(req,res)=>{
-    const status=req.body?.estado;if(!['En preparación','Enviada','Completada','Cancelada'].includes(status)) fail(400,'Estado no válido.');
+    const status=req.body?.estado;if(!['En preparación','Enviada','Cancelada'].includes(status)) fail(400,status==='Completada'?'La orden se completa al facturarla.':'Estado no válido.');
     await db.transaction(async tx=>{
       const r=await tx.query('SELECT estado FROM ordenes_venta WHERE id=$1 FOR UPDATE',[req.params.id]);const o=r.rows[0];if(!o) fail(404,'Orden inexistente.');
       if(['Completada','Cancelada'].includes(o.estado)) fail(409,'La orden ya está cerrada.');

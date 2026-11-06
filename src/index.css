@@ -14,3 +14,11 @@
 
 html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Impresión de documentos (factura, cotización): solo se imprime el documento abierto. */
+@media print {
+  body.imprimiendo-documento #root { display: none !important; }
+  body.imprimiendo-documento .documento-imprimible { position: static !important; background: white !important; padding: 0 !important; display: block !important; overflow: visible !important; }
+  body.imprimiendo-documento .documento-imprimible > div { box-shadow: none !important; max-width: none !important; }
+  .no-imprimir { display: none !important; }
+}
