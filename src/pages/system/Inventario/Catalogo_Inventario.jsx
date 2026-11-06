@@ -1,4 +1,5 @@
 import {useApiCollection} from '../../../hooks/useApiCollection';
+import {useApiList} from '../../../hooks/useApiList';
 import ProductoDetalle from '../../../components/erp/ProductoDetalle';
 import MaterialProveedores from '../../../components/erp/MaterialProveedores';
 import { useState } from 'react';
@@ -96,9 +97,11 @@ export default function Catalogo_Inventario() {
     const [productForm, setProductForm] = useState({codigo:'',nombre:'',categoria:'Bolsos',precio:'',stock:'0',minimo:'0',descripcion:'',material:''});
     const saveProduct = e => { e.preventDefault(); setSalesProducts(prev=>[...prev,{...productForm,id:Date.now(),precio:Number(productForm.precio),stock:Number(productForm.stock),minimo:Number(productForm.minimo),activo:true}]); setShowProductForm(false); setProductForm({codigo:'',nombre:'',categoria:'Bolsos',precio:'',stock:'0',minimo:'0',descripcion:'',material:''}); };
     const [materials] = useApiCollection('materiales');
+    const [disponibilidad] = useApiList('/disponibilidad');
+    const ubicacion = (key, id) => disponibilidad.filter(d => d[key] === id).map(d => `${d.almacen}: ${d.cantidad}`).join(' · ') || 'Sin existencias';
     const products = [
-        ...salesProducts.map(p => ({id:`p-${p.id}`, code:p.codigo, name:p.nombre, category:'Productos terminados',stock:p.stock,minimum:p.minimo,unit:'unidades',location:'Almacén principal',status:p.stock===0?'Crítico':p.stock<=p.minimo?'Bajo':'Disponible'})),
-        ...materials.map(m => ({...m,id:`m-${m.id}`,category:m.type==='Insumo'?'Insumos':m.type,status:m.stock===0?'Crítico':m.stock<=m.minimum?'Bajo':'Disponible'}))
+        ...salesProducts.map(p => ({id:`p-${p.id}`, code:p.codigo, name:p.nombre, category:'Productos terminados',stock:p.stock,minimum:p.minimo,unit:'unidades',location:ubicacion('productoId',p.id),status:p.stock===0?'Crítico':p.stock<=p.minimo?'Bajo':'Disponible'})),
+        ...materials.map(m => ({...m,location:ubicacion('materialId',m.id),id:`m-${m.id}`,category:m.type==='Insumo'?'Insumos':m.type,status:m.stock===0?'Crítico':m.stock<=m.minimum?'Bajo':'Disponible'}))
     ];
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('Todas');

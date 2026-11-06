@@ -1,4 +1,3 @@
-import MovimientosInventario from './pages/system/Inventario/MovimientosInventario';
 import ComprasIntegradas from './pages/system/Compras/ComprasIntegradas';
 import Usuarios from './pages/system/AdminSeguridad/Usuarios';
 import Roles from './pages/system/AdminSeguridad/Roles';
@@ -131,7 +130,7 @@ export default function App() {
             <Route path="inventario/reposiciones" element={< Reposicion_Alertas />} />
             <Route path="inventario/traslados" element={<Traslados />} />
             {/* <Route path="inventario/proveedores" element={<Proveedores />} /> */}
-            <Route path="inventario/trazabilidad" element={<MovimientosInventario />} />
+            <Route path="inventario/trazabilidad" element={<Trazabilidad />} />
             {/* FIN */}
 
 

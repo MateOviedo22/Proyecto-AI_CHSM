@@ -9,7 +9,10 @@ import { resources } from './resources.js';
 import {HttpError,fail,asyncRoute,dateValue,audit} from './http.js';
 import {exigir,guard} from './permisos.js';
 import usuarios from './routes/usuarios.js';
+import {moverStock,salidaFIFO,almacenId,crearLote,ALMACEN} from './stock.js';
 import maestros from './routes/maestros.js';
+import compras from './routes/compras.js';
+import inventario from './routes/inventario.js';
 export {HttpError};
 
 function resultRows(result, config) {
@@ -96,10 +99,14 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
   app.get('/api/auth/me',auth,(req,res)=>res.json({user:req.user}));
   app.use('/api',auth);
   app.use('/api',usuarios(db));
-  app.use('/api',maestros(db));
   app.use(['/api/ventas','/api/cotizaciones','/api/ordenes-venta'],guard('ventas'));
-  app.use('/api/compras',guard('compras'));
-  app.use(['/api/materiales','/api/movimientos'],guard('inventario'));
+  // Bodega (inventario) también registra la recepción física de compras.
+  app.use(['/api/compras','/api/proveedores/:id/historial'],(req,res,next)=>req.method==='POST'&&req.path==='/recepciones'&&req.user.role==='inventario'?next():guard('compras')(req,res,next));
+  app.use(['/api/materiales/:id/entradas'],guard('inventario'));
+  // Routers de módulos (cada uno valida sus permisos de lectura/escritura).
+  app.use('/api',maestros(db));
+  app.use('/api',compras(db));
+  app.use('/api',inventario(db));
   app.get('/api/recursos/:resource',asyncRoute(async(req,res)=>{
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para consultar este recurso.');
@@ -112,13 +119,17 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     const c=resources[req.params.resource]; if(!c) fail(404,'Recurso no disponible.');
     if(c.admin && req.user.role!=='admin') fail(403,'No tienes permiso para este recurso.');
     exigir(req.user,c.modulo,'escribir');
-    const data=validate(c,req.body,true), fields=Object.keys(data), columns=fields.map(k=>c.fields[k]), vals=fields.map(k=>data[k]);
+    const data=validate(c,req.body,true), fields=Object.keys(data), columns=fields.map(k=>c.fields[k]);
+    // El saldo inicial se registra con moverStock para que exista por almacén y en el historial.
+    const conStock=['materiales','productos'].includes(c.table) && Number(data.stock)>0;
+    const vals=fields.map(k=>k==='stock'&&conStock?0:data[k]);
     for(const [k,v] of Object.entries(c.fixed || {})){columns.push(k); vals.push(v)}
     await db.transaction(async tx=>{
       await tx.query(`INSERT INTO ${c.table} (${columns.join(',')}) VALUES (${vals.map((_,i)=>'$'+(i+1)).join(',')})`,vals);
-      if(['materiales','productos'].includes(c.table) && Number(data.stock)>0){
-        const itemColumn=c.table==='materiales'?'material_id':'producto_id';
-        await tx.query(`INSERT INTO movimientos_inventario(${itemColumn},tipo,cantidad,saldo,referencia,usuario_id) VALUES($1,$2,$3,$4,$5,$6)`,[data.id,'Saldo inicial',data.stock,data.stock,String(data.code || data.codigo),req.user.id]);
+      if(conStock){
+        const material=c.table==='materiales';
+        const alm=await almacenId(tx,req.body.almacenId,material?ALMACEN.TALLER:ALMACEN.TIENDA);
+        await moverStock(tx,{almacenId:alm,[material?'materialId':'productoId']:data.id,cantidad:data.stock,tipo:'Saldo inicial',referencia:String(data.code || data.codigo),usuarioId:req.user.id});
       }
       if(c.table==='materiales') await syncProveedor(tx,data.id);
       await audit(tx,req.user,'crear',req.params.resource,data.id);
@@ -160,8 +171,9 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
     const q=await db.query('SELECT id,cliente_nombre AS cliente,fecha,metodo,subtotal,descuento,total,estado FROM ventas ORDER BY fecha DESC LIMIT 500');
     res.json({data:q.rows.map(row=>({...row,id:Number(row.id),subtotal:Number(row.subtotal),descuento:Number(row.descuento),total:Number(row.total)}))});
   }));
-  app.post('/api/ventas',asyncRoute(async(req,res)=>{
-    const {cliente='Cliente de mostrador',clienteId=null,metodo='Efectivo',porcentajeDescuento=0,items}=req.body || {};
+  // Registra una venta completa: valida disponibilidad en el almacén, descuenta stock por lote (FIFO),
+  // guarda el detalle, el ingreso financiero y la auditoría. Reutilizada por el POS y por la facturación de órdenes.
+  async function registrarVenta(tx,user,{cliente='Cliente de mostrador',clienteId=null,metodo='Efectivo',porcentajeDescuento=0,items,almacenId:alm=null,ordenVentaId=null,preciosFijos=null}){
     if(typeof cliente!=='string'||!cliente.trim()||cliente.length>200) fail(400,'Indica un cliente válido.');
     if(!['Efectivo','Transferencia','Tarjeta'].includes(metodo)) fail(400,'Método de pago inválido.');
     if(!Array.isArray(items)||!items.length||items.length>100) fail(400,'Agrega entre 1 y 100 productos.');
@@ -171,50 +183,60 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
       if(!Number.isSafeInteger(Number(item.productoId)) || Number(item.productoId)<=0 || !Number.isSafeInteger(Number(item.cantidad)) || Number(item.cantidad)<=0) fail(400,'Los productos y cantidades deben ser válidos.');
       if(ids.has(Number(item.productoId))) fail(400,'No repitas un producto en el carrito.'); ids.add(Number(item.productoId));
     }
-    const sale=await db.transaction(async tx=>{
-      let lines=[], subtotal=new Decimal(0);
-      // Stable lock order prevents deadlocks when several sales share products.
-      for(const item of [...items].sort((a,b)=>Number(a.productoId)-Number(b.productoId))){
-        const q=await tx.query(`SELECT p.id,p.codigo,p.nombre,p.existencia,p.activo,COALESCE((SELECT ROUND(GREATEST(0,CASE WHEN pr.tipo='porcentaje' THEN p.precio*(1-pr.valor/100) ELSE p.precio-pr.valor END),2) FROM promociones pr WHERE pr.producto_id=p.id AND pr.activa=true AND CURRENT_DATE BETWEEN pr.inicio AND pr.fin ORDER BY pr.id DESC LIMIT 1),p.precio) AS precio FROM productos p WHERE p.id=$1 FOR UPDATE`,[Number(item.productoId)]);
-        const p=q.rows[0]; if(!p || !p.activo) fail(400,'Hay un producto inexistente o inactivo.');
-        const qty=Number(item.cantidad); if(Number(p.existencia)<qty) fail(409,`Stock insuficiente para ${p.nombre}.`);
-        const line=new Decimal(p.precio).times(qty).toDecimalPlaces(2); subtotal=subtotal.plus(line);
-        lines.push({id:Number(p.id),nombre:p.nombre,codigo:p.codigo,precio:Number(p.precio),cantidad:qty,subtotal:line.toFixed(2),stock:Number(p.existencia)});
-      }
-      const descuento=subtotal.times(pct).div(100).toDecimalPlaces(2), total=subtotal.minus(descuento);
-      if(clienteId){const c=await tx.query('SELECT id FROM clientes WHERE id=$1 AND estado=$2',[clienteId,'Activo']); if(!c.rows.length) fail(400,'El cliente seleccionado no existe o está inactivo.');}
-      const created=await tx.query('INSERT INTO ventas(cliente_id,cliente_nombre,metodo,subtotal,descuento,total,usuario_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,fecha',[clienteId,cliente.trim(),metodo,subtotal.toFixed(2),descuento.toFixed(2),total.toFixed(2),req.user.id]);
-      const saleId=Number(created.rows[0].id);
-      for(const l of lines){
-        await tx.query('INSERT INTO venta_detalles(venta_id,producto_id,cantidad,precio,subtotal) VALUES($1,$2,$3,$4,$5)',[saleId,l.id,l.cantidad,l.precio,l.subtotal]);
-        await tx.query('UPDATE productos SET existencia=existencia-$1,version=version+1 WHERE id=$2',[l.cantidad,l.id]);
-        await tx.query('INSERT INTO movimientos_inventario(producto_id,tipo,cantidad,saldo,referencia,usuario_id) VALUES($1,$2,$3,$4,$5,$6)',[l.id,'Venta',-l.cantidad,l.stock-l.cantidad,`VENTA-${saleId}`,req.user.id]);
-      }
-      await tx.query("INSERT INTO finanzas_movimientos(id,tipo,fecha,concepto,categoria,monto,metodo,estado,venta_id) VALUES($1,'Ingreso',CURRENT_DATE,$2,'Ventas',$3,$4,'Confirmado',$5)",[-saleId,`Venta #${saleId}`,total.toFixed(2),metodo,saleId]);
-      await audit(tx,req.user,'registrar','ventas',saleId);
-      return {id:`V-${saleId}`,cliente:cliente.trim(),fecha:created.rows[0].fecha,metodo,productos:lines,subtotal:Number(subtotal),descuento:Number(descuento),total:Number(total)};
-    });
+    const almacen=await almacenId(tx,alm,ALMACEN.TIENDA);
+    let lines=[], subtotal=new Decimal(0);
+    // Orden de bloqueo estable para evitar interbloqueos entre ventas simultáneas.
+    for(const item of [...items].sort((a,b)=>Number(a.productoId)-Number(b.productoId))){
+      const q=await tx.query(`SELECT p.id,p.codigo,p.nombre,p.existencia,p.activo,COALESCE((SELECT ROUND(GREATEST(0,CASE WHEN pr.tipo='porcentaje' THEN p.precio*(1-pr.valor/100) ELSE p.precio-pr.valor END),2) FROM promociones pr WHERE pr.producto_id=p.id AND pr.activa=true AND CURRENT_DATE BETWEEN pr.inicio AND pr.fin ORDER BY pr.id DESC LIMIT 1),p.precio) AS precio FROM productos p WHERE p.id=$1 FOR UPDATE`,[Number(item.productoId)]);
+      const p=q.rows[0]; if(!p || !p.activo) fail(400,'Hay un producto inexistente o inactivo.');
+      const qty=Number(item.cantidad), precio=preciosFijos?.has(Number(p.id))?preciosFijos.get(Number(p.id)):Number(p.precio);
+      const line=new Decimal(precio).times(qty).toDecimalPlaces(2); subtotal=subtotal.plus(line);
+      lines.push({id:Number(p.id),nombre:p.nombre,codigo:p.codigo,precio,cantidad:qty,subtotal:line.toFixed(2)});
+    }
+    const descuento=subtotal.times(pct).div(100).toDecimalPlaces(2), total=subtotal.minus(descuento);
+    if(clienteId){const c=await tx.query('SELECT id FROM clientes WHERE id=$1 AND estado=$2',[clienteId,'Activo']); if(!c.rows.length) fail(400,'El cliente seleccionado no existe o está inactivo.');}
+    const created=await tx.query('INSERT INTO ventas(cliente_id,cliente_nombre,metodo,subtotal,descuento,total,usuario_id,almacen_id,orden_venta_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,fecha',[clienteId,cliente.trim(),metodo,subtotal.toFixed(2),descuento.toFixed(2),total.toFixed(2),user.id,almacen,ordenVentaId]);
+    const saleId=Number(created.rows[0].id);
+    for(const l of lines){
+      await tx.query('INSERT INTO venta_detalles(venta_id,producto_id,cantidad,precio,subtotal) VALUES($1,$2,$3,$4,$5)',[saleId,l.id,l.cantidad,l.precio,l.subtotal]);
+      l.lotes=await salidaFIFO(tx,{almacenId:almacen,productoId:l.id,cantidad:l.cantidad,tipo:'Venta',referencia:`VENTA-${saleId}`,usuarioId:user.id});
+      l.stock=Number((await tx.query('SELECT existencia FROM productos WHERE id=$1',[l.id])).rows[0].existencia);
+    }
+    await tx.query("INSERT INTO finanzas_movimientos(id,tipo,fecha,concepto,categoria,monto,metodo,estado,venta_id) VALUES($1,'Ingreso',CURRENT_DATE,$2,'Ventas',$3,$4,'Confirmado',$5)",[-saleId,`Venta #${saleId}`,total.toFixed(2),metodo,saleId]);
+    const factura=await emitirFactura(tx,user,{ventaId:saleId,clienteId,cliente:cliente.trim(),subtotal,descuento,total});
+    await audit(tx,user,'registrar','ventas',saleId);
+    return {id:`V-${saleId}`,ventaId:saleId,factura,cliente:cliente.trim(),fecha:created.rows[0].fecha,metodo,almacenId:almacen,productos:lines,subtotal:Number(subtotal),descuento:Number(descuento),total:Number(total)};
+  }
+  // Comprobante interno numerado (no fiscal). Se activa con la migración 007; antes devuelve null.
+  async function emitirFactura(tx,user,{ventaId,clienteId,cliente,subtotal,descuento,total}){
+    const ok=(await tx.query("SELECT to_regclass('facturas') IS NOT NULL AS ok")).rows[0].ok; if(!ok) return null;
+    const n=(await tx.query("SELECT nextval('factura_numero_seq') AS n")).rows[0].n, numero=`FAC-${String(n).padStart(6,'0')}`;
+    await tx.query('INSERT INTO facturas(numero,venta_id,cliente_id,cliente_nombre,subtotal,descuento,total,usuario_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[numero,ventaId,clienteId,cliente,subtotal.toFixed(2),descuento.toFixed(2),total.toFixed(2),user.id]);
+    return numero;
+  }
+  app.post('/api/ventas',asyncRoute(async(req,res)=>{
+    const {cliente,clienteId,metodo,porcentajeDescuento,items,almacenId:alm}=req.body || {};
+    const sale=await db.transaction(tx=>registrarVenta(tx,req.user,{cliente,clienteId,metodo,porcentajeDescuento,items,almacenId:alm}));
     res.status(201).json({data:sale});
   }));
   app.post('/api/materiales/:id/entradas',asyncRoute(async(req,res)=>{
-    const {quantity,unitCost,supplier='',invoice='',date=null,notes=''}=req.body||{};
+    const {quantity,unitCost,supplier='',invoice='',date=null,notes='',almacenId:alm=null,lote=''}=req.body||{};
     const q=Number(quantity),cost=Number(unitCost);
     if(!Number.isFinite(q)||q<=0||q>100000000||!Number.isFinite(cost)||cost<0) fail(400,'Revisa la cantidad y el costo.');
-    if(typeof supplier!=='string'||typeof invoice!=='string'||typeof notes!=='string'||supplier.length>200||invoice.length>200||notes.length>1000||(date!==null && (typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)))) fail(400,'Datos de entrada inválidos.');
+    if(typeof supplier!=='string'||typeof invoice!=='string'||typeof notes!=='string'||typeof lote!=='string'||lote.length>60||supplier.length>200||invoice.length>200||notes.length>1000||(date!==null && (typeof date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(date)))) fail(400,'Datos de entrada inválidos.');
     const row=await db.transaction(async tx=>{
       const r=await tx.query('SELECT * FROM materiales WHERE id=$1 FOR UPDATE',[req.params.id]); const m=r.rows[0]; if(!m) fail(404,'Material no encontrado.');
       const stock=new Decimal(m.existencia).plus(q), weighted=new Decimal(m.existencia).times(m.costo).plus(new Decimal(q).times(cost)).div(stock).toDecimalPlaces(2);
-      await tx.query('UPDATE materiales SET existencia=$1,costo=$2,proveedor=$3,version=version+1 WHERE id=$4',[stock.toFixed(3),weighted.toFixed(2),supplier.trim() || m.proveedor,m.id]);
-      await tx.query('INSERT INTO entradas_material(material_id,fecha,proveedor,cantidad,costo_unitario,documento,notas,usuario_id) VALUES($1,COALESCE($2::date,CURRENT_DATE),$3,$4,$5,$6,$7,$8)',[m.id,date,supplier.trim(),q,cost,invoice.trim(),notes.trim(),req.user.id]);
-      await tx.query('INSERT INTO movimientos_inventario(material_id,tipo,cantidad,saldo,referencia,usuario_id) VALUES($1,$2,$3,$4,$5,$6)',[m.id,'Entrada',q,stock.toFixed(3),invoice.trim(),req.user.id]);
+      await tx.query('UPDATE materiales SET costo=$1,proveedor=$2 WHERE id=$3',[weighted.toFixed(2),supplier.trim() || m.proveedor,m.id]);
+      const almacen=await almacenId(tx,alm,ALMACEN.TALLER);
+      const l=lote.trim()?await crearLote(tx,{materialId:m.id,origen:'Compra',referencia:invoice.trim(),codigo:lote.trim()}):null;
+      await tx.query('INSERT INTO entradas_material(material_id,fecha,proveedor,cantidad,costo_unitario,documento,notas,usuario_id,almacen_id,lote_id) VALUES($1,COALESCE($2::date,CURRENT_DATE),$3,$4,$5,$6,$7,$8,$9,$10)',[m.id,date,supplier.trim(),q,cost,invoice.trim(),notes.trim(),req.user.id,almacen,l?.id??null]);
+      await moverStock(tx,{almacenId:almacen,materialId:m.id,loteId:l?.id??null,cantidad:q,tipo:'Entrada',referencia:invoice.trim(),motivo:'Entrada directa',usuarioId:req.user.id});
+      if(supplier.trim()) await syncProveedor(tx,m.id);
       await audit(tx,req.user,'registrar entrada','materiales',m.id);
       return (await tx.query(selectSql(resources.materiales)+' WHERE t.id=$1',[m.id]));
     });
     res.status(201).json({data:resultRows(row,resources.materiales)[0]});
-  }));
-  app.get('/api/movimientos',asyncRoute(async(req,res)=>{
-    const r=await db.query('SELECT m.id,m.tipo,m.cantidad,m.saldo,m.referencia,m.fecha,COALESCE(p.nombre,ma.nombre) AS articulo,u.nombre AS usuario FROM movimientos_inventario m LEFT JOIN productos p ON p.id=m.producto_id LEFT JOIN materiales ma ON ma.id=m.material_id JOIN usuarios u ON u.id=m.usuario_id ORDER BY m.fecha DESC LIMIT 500');
-    res.json({data:r.rows});
   }));
   async function quoteRows(tx){
     const quotes=(await tx.query('SELECT * FROM cotizaciones ORDER BY fecha DESC,id DESC')).rows;
@@ -292,80 +314,6 @@ export function createApp({db, jwtSecret, corsOrigin='http://localhost:5173'}) {
       if(status!=='Cancelada' && rank[status]<rank[o.estado]) fail(409,'No se puede retroceder el estado.');
       await tx.query('UPDATE ordenes_venta SET estado=$1,version=version+1 WHERE id=$2',[status,req.params.id]);await audit(tx,req.user,'cambiar estado','ordenes-venta',req.params.id);
     });res.json({data:(await orderRows(db)).find(x=>x.id===req.params.id)});
-  }));
-
-  const code=(prefix)=>`${prefix}-${Date.now()}-${Math.floor(Math.random()*100000)}`;
-  app.get('/api/compras',asyncRoute(async(req,res)=>{
-    const solicitudes=(await db.query(`SELECT s.id,s.fecha,s.solicitante,s.area,s.material_id,m.nombre AS producto,s.cantidad,s.unidad,s.prioridad,s.estado,s.observaciones AS justificacion
-      FROM solicitudes_compra s JOIN materiales m ON m.id=s.material_id ORDER BY s.fecha DESC,s.id DESC`)).rows;
-    const ordenes=(await db.query(`SELECT o.id,o.solicitud_id,o.fecha,o.fecha_entrega,o.estado,p.nombre AS proveedor,p.id AS proveedor_id,m.nombre AS producto,m.id AS material_id,d.cantidad,d.precio,
-      COALESCE((SELECT SUM(r.cantidad) FROM recepciones_compra r WHERE r.orden_detalle_id=d.id),0) AS recibido
-      FROM ordenes_compra o JOIN proveedores p ON p.id=o.proveedor_id JOIN orden_compra_detalles d ON d.orden_id=o.id JOIN materiales m ON m.id=d.material_id ORDER BY o.fecha DESC,o.id DESC`)).rows;
-    const recepciones=(await db.query(`SELECT r.id,r.fecha,r.cantidad,r.documento,r.observaciones,o.id AS orden_id,m.nombre AS producto,p.nombre AS proveedor
-      FROM recepciones_compra r JOIN orden_compra_detalles d ON d.id=r.orden_detalle_id JOIN ordenes_compra o ON o.id=d.orden_id
-      JOIN proveedores p ON p.id=o.proveedor_id JOIN materiales m ON m.id=d.material_id ORDER BY r.fecha DESC`)).rows;
-    res.json({data:{solicitudes:solicitudes.map(x=>({...x,fecha:dateValue(x.fecha),cantidad:Number(x.cantidad),material_id:Number(x.material_id)})),
-      ordenes:ordenes.map(x=>({...x,fecha:dateValue(x.fecha),fecha_entrega:dateValue(x.fecha_entrega),cantidad:Number(x.cantidad),precio:Number(x.precio),recibido:Number(x.recibido),total:Number(new Decimal(x.cantidad).times(x.precio))})),
-      recepciones:recepciones.map(x=>({...x,cantidad:Number(x.cantidad)}))}});
-  }));
-  app.post('/api/compras/solicitudes',asyncRoute(async(req,res)=>{
-    const {materialId,cantidad,solicitante,area='',prioridad='Media',justificacion=''}=req.body||{};
-    if(!Number.isSafeInteger(Number(materialId))||Number(materialId)<=0||!Number.isFinite(Number(cantidad))||Number(cantidad)<=0||typeof solicitante!=='string'||!solicitante.trim()||solicitante.length>200||typeof area!=='string'||area.length>200||!['Alta','Media','Baja'].includes(prioridad)||typeof justificacion!=='string'||justificacion.length>1000) fail(400,'Revisa los datos de la solicitud.');
-    const id=code('SOL');
-    await db.transaction(async tx=>{
-      const mat=(await tx.query('SELECT unidad FROM materiales WHERE id=$1',[Number(materialId)])).rows[0];if(!mat) fail(400,'El material no existe.');
-      await tx.query('INSERT INTO solicitudes_compra(id,material_id,solicitante,cantidad,area,unidad,prioridad,observaciones) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,Number(materialId),solicitante.trim(),Number(cantidad),area,mat.unidad,prioridad,justificacion]);await audit(tx,req.user,'crear','solicitudes-compra',id);
-    });res.status(201).json({data:{id}});
-  }));
-  app.patch('/api/compras/solicitudes/:id/estado',asyncRoute(async(req,res)=>{
-    const estado=req.body?.estado;if(!['Aprobada','Rechazada'].includes(estado)) fail(400,'Estado inválido.');
-    await db.transaction(async tx=>{
-      const q=await tx.query("UPDATE solicitudes_compra SET estado=$1 WHERE id=$2 AND estado='Pendiente' RETURNING id",[estado,req.params.id]);if(!q.rows.length) fail(409,'La solicitud ya no está pendiente o no existe.');await audit(tx,req.user,'cambiar estado','solicitudes-compra',req.params.id);
-    });res.json({data:{id:req.params.id,estado}});
-  }));
-  app.post('/api/compras/ordenes',asyncRoute(async(req,res)=>{
-    const {proveedorId,materialId,solicitudId=null,cantidad,precio,fechaEntrega=null}=req.body||{};
-    const supplier=Number(proveedorId),material=Number(materialId),qty=Number(cantidad),price=Number(precio);
-    if(precio==='' || precio===null || precio===undefined) fail(400,'Indica el precio unitario.');
-    if(!Number.isSafeInteger(supplier)||supplier<=0||!Number.isSafeInteger(material)||material<=0||!Number.isFinite(qty)||qty<=0||!Number.isFinite(price)||price<0||(fechaEntrega!==null && (typeof fechaEntrega!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(fechaEntrega)))) fail(400,'Revisa el proveedor, material, cantidad y precio.');
-    const id=code('OC');
-    await db.transaction(async tx=>{
-      if(!(await tx.query("SELECT id FROM proveedores WHERE id=$1 AND estado='Activo'",[supplier])).rows.length) fail(400,'El proveedor no existe o está inactivo.');
-      if(!(await tx.query('SELECT id FROM materiales WHERE id=$1',[material])).rows.length) fail(400,'El material no existe.');
-      if(solicitudId){
-        const r=await tx.query('SELECT estado,material_id FROM solicitudes_compra WHERE id=$1 FOR UPDATE',[solicitudId]);const sol=r.rows[0];
-        if(!sol || sol.estado!=='Aprobada' || Number(sol.material_id)!==material) fail(409,'La solicitud debe estar aprobada y corresponder al material.');
-        await tx.query("UPDATE solicitudes_compra SET estado='Orden generada' WHERE id=$1",[solicitudId]);
-      }
-      await tx.query('INSERT INTO ordenes_compra(id,solicitud_id,proveedor_id,fecha_entrega,usuario_id) VALUES($1,$2,$3,$4,$5)',[id,solicitudId||null,supplier,fechaEntrega||null,req.user.id]);
-      await tx.query('INSERT INTO orden_compra_detalles(orden_id,material_id,cantidad,precio) VALUES($1,$2,$3,$4)',[id,material,qty,price]);await audit(tx,req.user,'crear','ordenes-compra',id);
-    });res.status(201).json({data:{id}});
-  }));
-  app.patch('/api/compras/ordenes/:id/estado',asyncRoute(async(req,res)=>{
-    const estado=req.body?.estado;if(!['Enviada','Cancelada'].includes(estado)) fail(400,'Estado inválido.');
-    await db.transaction(async tx=>{
-      const o=(await tx.query('SELECT estado,solicitud_id FROM ordenes_compra WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];if(!o) fail(404,'Orden inexistente.');
-      if((estado==='Enviada' && o.estado!=='Borrador')||(estado==='Cancelada' && !['Borrador','Enviada'].includes(o.estado))) fail(409,'Esta orden no admite ese cambio de estado.');
-      await tx.query('UPDATE ordenes_compra SET estado=$1 WHERE id=$2',[estado,req.params.id]);
-      if(estado==='Cancelada' && o.solicitud_id) await tx.query("UPDATE solicitudes_compra SET estado='Aprobada' WHERE id=$1",[o.solicitud_id]);await audit(tx,req.user,'cambiar estado','ordenes-compra',req.params.id);
-    });res.json({data:{id:req.params.id,estado}});
-  }));
-  app.post('/api/compras/recepciones',asyncRoute(async(req,res)=>{
-    const {ordenId,cantidad,documento='',observaciones=''}=req.body||{};const qty=Number(cantidad);
-    if(typeof ordenId!=='string'||!Number.isFinite(qty)||qty<=0||qty>100000000||typeof documento!=='string'||documento.length>200||typeof observaciones!=='string'||observaciones.length>1000) fail(400,'Revisa la recepción.');
-    await db.transaction(async tx=>{
-      const o=(await tx.query('SELECT id,estado FROM ordenes_compra WHERE id=$1 FOR UPDATE',[ordenId])).rows[0];
-      if(!o||!['Enviada','Parcial'].includes(o.estado)) fail(409,'La orden no permite recibir mercancía.');
-      const d=(await tx.query('SELECT * FROM orden_compra_detalles WHERE orden_id=$1',[ordenId])).rows[0];
-      const received=Number((await tx.query('SELECT COALESCE(SUM(cantidad),0) AS n FROM recepciones_compra WHERE orden_detalle_id=$1',[d.id])).rows[0].n);
-      if(new Decimal(received).plus(qty).greaterThan(d.cantidad)) fail(409,'La cantidad supera lo pendiente de recepción.');
-      const m=(await tx.query('SELECT * FROM materiales WHERE id=$1 FOR UPDATE',[d.material_id])).rows[0];
-      const balance=new Decimal(m.existencia).plus(qty), avg=new Decimal(m.existencia).times(m.costo).plus(new Decimal(qty).times(d.precio)).div(balance).toDecimalPlaces(2);
-      await tx.query('INSERT INTO recepciones_compra(orden_detalle_id,cantidad,documento,observaciones,usuario_id) VALUES($1,$2,$3,$4,$5)',[d.id,qty,documento,observaciones,req.user.id]);
-      await tx.query('UPDATE materiales SET existencia=$1,costo=$2,version=version+1 WHERE id=$3',[balance.toFixed(3),avg.toFixed(2),m.id]);
-      await tx.query('INSERT INTO movimientos_inventario(material_id,tipo,cantidad,saldo,referencia,usuario_id) VALUES($1,$2,$3,$4,$5,$6)',[m.id,'Recepción de compra',qty,balance.toFixed(3),ordenId,req.user.id]);
-      await tx.query('UPDATE ordenes_compra SET estado=$1 WHERE id=$2',[new Decimal(received).plus(qty).equals(d.cantidad)?'Recibida':'Parcial',ordenId]);await audit(tx,req.user,'recibir','ordenes-compra',ordenId);
-    });res.status(201).json({data:{ordenId}});
   }));
 
   app.use((req,res)=>res.status(404).json({error:'Ruta no encontrada.'}));
