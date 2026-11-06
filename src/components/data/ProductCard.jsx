@@ -10,7 +10,7 @@ export default function ProductCard({ name, image, description, details, layout 
       className={`group flex w-full overflow-hidden rounded-card bg-white text-left shadow-card transition hover:shadow-lift ${row ? 'gap-4 p-3' : 'flex-col'} ${selected ? 'ring-2 ring-sun' : ''}`}
     >
       <div className={`shrink-0 overflow-hidden bg-gradient-to-br from-[#8a5a3c] to-[#4a2c1c] ${row ? 'h-24 w-24 rounded-lg' : 'aspect-square w-full'}`}>
-        <img src={`/products/${image}`} alt={name} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+        <img src={image} alt={name} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
       </div>
       <div className={row ? 'flex-1' : 'p-4'}>
         <h3 className="text-lg font-semibold">{name}</h3>

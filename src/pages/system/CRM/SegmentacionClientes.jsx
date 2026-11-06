@@ -462,15 +462,7 @@ export default function Segmentacion() {
                     </div>
                 </section>
 
-                <div className="flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                    <Target size={20} className="mt-0.5 shrink-0" />
-                    <p>
-                        Los segmentos y montos son ilustrativos. En una versión conectada
-                        al backend, las categorías deben derivarse de criterios comerciales
-                        definidos y los importes deben calcularse a partir de las ventas
-                        efectivamente registradas.
-                    </p>
-                </div>
+                
             </div>
         </div>
     );

@@ -40,6 +40,7 @@ import InformesInventario from './pages/system/Inventario/InformesInventario';
 import Reposicion_Alertas from './pages/system/Inventario/Reposicion_Alertas';
 import Traslados from './pages/system/Inventario/Traslados';
 import Trazabilidad from './pages/system/Inventario/Trazabilidad';
+// import Proveedores from './pages/system/Inventario/Proveedores';
 
 
 //Modulos de Ventas
@@ -68,6 +69,16 @@ import Areas_Puestos from './pages/system/RRHH/Areas_Puestos';
 import Asistencias_Horiario from './pages/system/RRHH/Asistencias_Horiario';
 import Permisos_Ausencias from './pages/system/RRHH/Permisos_Ausencias';
 import Reportes_Empleados from './pages/system/RRHH/Reportes_Empleados';
+
+//Modulos Compras
+import PanelCompras from './pages/system/Compras/PanelCompras';
+import Solicitudes_Compras from './pages/system/Compras/Solicitudes_Compras';
+import Proveedores from './pages/system/Compras/Proveedores';
+import Ordenes_Compras from './pages/system/Compras/Ordenes_Compras';
+import Recepcion_Compras from './pages/system/Compras/Recepción_Compras';
+import Analisis_Compras from './pages/system/Compras/Reportes_Compras';
+import Devoluciones_Compras from './pages/system/Compras/Devoluciones_Compras';
+
 
 export default function App() {
   return (
@@ -115,6 +126,7 @@ export default function App() {
             <Route path="inventario/almacenes" element={<Almacenes_Ubicaciones />} />
             <Route path="inventario/reposiciones" element={< Reposicion_Alertas />} />
             <Route path="inventario/traslados" element={<Traslados />} />
+            {/* <Route path="inventario/proveedores" element={<Proveedores />} /> */}
             <Route path="inventario/trazabilidad" element={< Trazabilidad />} />
             {/* FIN */}
 
@@ -148,6 +160,17 @@ export default function App() {
             <Route path="rrhh/permisos-ausencias" element={<Permisos_Ausencias />} />
             <Route path="rrhh/reportes" element={<Reportes_Empleados />} />
             {/* FIN */}
+
+
+            <Route path="compras" element={<PanelCompras />} />
+            <Route path="compras/proveedores" element={<Proveedores />} />
+            <Route path="compras/solicitudes" element={<Solicitudes_Compras/>} />
+            <Route path="compras/devoluciones" element={<Devoluciones_Compras/>} />
+            <Route path="compras/reportes" element={<Analisis_Compras/>} />
+            <Route path="compras/recepcion" element={<Recepcion_Compras/>} />
+            <Route path="compras/ordenes" element={<OrdenesVentas/>} />
+
+
 
           </Route>
 
